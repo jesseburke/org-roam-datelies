@@ -527,6 +527,32 @@ should have the form (WEEK YEAR). Will return list of items of the form (TIME-PE
                                (org-roam-lies-get-node-time-period) full-filename))))
     (org-agenda)))
 
+(defun orl-move (copy-p direction)
+  "DIRECTION should be a character and either j for previous, l for
+forward, i for up, and k for down. If called with a prefix
+argument, then copy the entry to location."
+  (interactive "P\ncChoose where to refile.")  
+  (let* ((command-suffix
+          (pcase direction
+            (?j "previous")
+            (?k "down-first")
+            (?l "forward")
+            (?i "up")
+            (?d "this-day")
+            (?w "this-week")
+            (?m "this-month")
+            (?y "this-year")
+            (?e "ever")))
+         (command-name (concat "org-roam-lies-find-" command-suffix))
+         (file-name
+          (save-window-excursion
+            (save-excursion
+              (funcall (intern command-name))
+              (buffer-file-name)))))
+    (let (org-refile-keep)
+      (if copy-p (setq org-refile-keep t))
+      (org-refile nil nil (list nil file-name)))))
+
 ;;; org-roam-lies-map (keymap)
 (define-prefix-command 'org-roam-lies-map)
 (define-prefix-command 'orl-choose-date-map)
