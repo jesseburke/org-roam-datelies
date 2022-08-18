@@ -4,8 +4,8 @@
 ;;
 ;; URL: https://github.com/org-roam/org-roam
 ;; Keywords: org-mode, roam, convenience
-;; Version: 2.0.0
-;; Package-Requires: ((emacs "26.1") (dash "2.13") (f "0.17.2") (org "9.4") (emacsql "3.0.0") (emacsql-sqlite "1.0.0") (magit-section "2.90.1"))
+;; Version: 0.0.2
+;; Package-Requires: ((emacs "26.1") (org-roam "2.2.2"))
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -26,7 +26,6 @@
 
 ;;; vars and customizations
 (require 'org-roam)
-(require 'org-capture)
 (require 'cal-iso)
 (require 'f)
 
@@ -527,9 +526,10 @@ should have the form (WEEK YEAR). Will return list of items of the form (TIME-PE
                                (org-roam-lies-get-node-time-period) full-filename))))
     (org-agenda)))
 
-(defun orl-move (copy-p direction)
+(defun orl-refile (copy-p direction)
   "DIRECTION should be a character and either j for previous, l for
-forward, i for up, and k for down. If called with a prefix
+forward, i for up, k for down, d for today, w for this week, m for
+  this month, y for this year, or e for ever. If called with a prefix
 argument, then copy the entry to location."
   (interactive "P\ncChoose where to refile.")  
   (let* ((command-suffix
@@ -572,6 +572,8 @@ argument, then copy the entry to location."
                                             (forward-char)
                                             (backward-char)))
 (define-key org-roam-lies-map (kbd "c") #'orl-choose-date-map)
+(define-key org-roam-lies-map (kbd "r") #'orl-refile)
+(define-key org-roam-lies-map (kbd "k") #'orl-down-map)
 
 (define-key org-roam-lies-map (kbd "M-j") #'org-roam-lies-find-previous)
 (define-key org-roam-lies-map (kbd "M-l") #'org-roam-lies-find-forward)
@@ -587,6 +589,7 @@ argument, then copy the entry to location."
                                             (forward-char)
                                             (backward-char)))
 (define-key org-roam-lies-map (kbd "M-c") #'orl-choose-date-map)
+(define-key org-roam-lies-map (kbd "M-r") #'orl-refile)
 (define-key org-roam-lies-map (kbd "M-k") #'orl-down-map)
 
 
@@ -614,3 +617,4 @@ argument, then copy the entry to location."
   (put command 'repeat-map 'org-roam-lies-map))
 
 (provide 'org-roam-lies)
+
