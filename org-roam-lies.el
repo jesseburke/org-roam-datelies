@@ -68,8 +68,10 @@
 (defun time-in-time-period-p (time-to-check time-period time-data)
   (cl-destructuring-bind (start-time end-time)
       (time-period-start-and-end-times time-period time-data)
-    (and (time-less-p start-time time-to-check) (time-less-p
-                                                 time-to-check end-time))))
+    (and (or (time-equal-p start-time time-to-check)
+             (time-less-p start-time time-to-check))
+         (or (time-equal-p time-to-check end-time)
+             (time-less-p time-to-check end-time)))))
 
 (defun day-start-and-end-times (day month year)
   (list (encode-time 1 0 0 day month year)
@@ -290,7 +292,7 @@ If FILE is not specified, use the current buffer's file-path."
               ((f-descendant-of-p path ed) 'ever))))))
 
 (defun orl--time-data-from-file-name (time-period filename)
-  "Assumes that dailies are names: YYYY-MM-DD, weeklies YYYY-wWW,
+  "Assumes that dailies are names: YYYY-MM-DD, weeklies YYYY-WW,
   monthlies YYYY-MM, quarterlies YYYY-Q, and yearlies YYYY."
   (setq filename (file-name-base filename))
   (pcase time-period
@@ -505,9 +507,12 @@ should have the form (WEEK YEAR). Will return list of items of the form (TIME-PE
                                                                       :inner :join nodes
                                                                       :on (= tags:node-id nodes:id)
                                                                       :where (in tag $v1)] tag-vec)
-                        collect (list file (intern (substring tag 4)) (orl--time-data-from-file-name (intern (substring tag 4)) file))))
-         (cl-loop for (file tp-tc td-tc) in return-list
-                  when (time-period-under-time-period-p time-period time-data tp-tc td-tc)
+                        collect (list file (intern (substring tag 4))
+                                      (orl--time-data-from-file-name
+                                       (intern (substring tag 4))
+                                       file))))
+         (cl-loop for (file time-period-to-check time-data-to-check) in return-list
+                  when (time-period-under-time-period-p time-period time-data time-period-to-check time-data-to-check)
                   collect file)))
 
 (defun org-roam-lies-agenda (&optional full-filename)
@@ -525,6 +530,33 @@ should have the form (WEEK YEAR). Will return list of items of the form (TIME-PE
                               (orl--time-data-from-file-name
                                (org-roam-lies-get-node-time-period) full-filename))))
     (org-agenda)))
+
+(defun orl-time-worked (&optional params full-filename)
+  "Find the total time worked in all of the files under the current
+buffer, or full-filename if provided."
+  (interactive)  
+  (unless full-filename (setq full-filename (buffer-file-name)))
+  (setq params (org-combine-plists org-clocktable-defaults params))
+  (let ((files
+         (save-window-excursion
+           (find-file full-filename)    
+           (setq files (orl--files-under
+                        (org-roam-lies-get-node-time-period)
+                        (orl--time-data-from-file-name
+                         (org-roam-lies-get-node-time-period) full-filename)))))
+         (tables
+	  (if (consp files)
+	      (mapcar (lambda (file)
+			(with-current-buffer (find-buffer-visiting file)
+			  (save-excursion
+			    (save-restriction
+			      (org-clock-get-table-data file params)))))
+		      files)))
+         (worked-minutes 0))
+    (pcase-dolist (`(,file-name ,file-time ,entries) tables)
+      (setq worked-minutes (+ worked-minutes file-time)))
+    (message "Worked %s hours" (org-duration-from-minutes
+  worked-minutes 'h:mm))))
 
 (defun orl-refile (copy-p direction)
   "DIRECTION should be a character and either j for previous, l for
@@ -574,6 +606,7 @@ argument, then copy the entry to location."
 (define-key org-roam-lies-map (kbd "c") #'orl-choose-date-map)
 (define-key org-roam-lies-map (kbd "r") #'orl-refile)
 (define-key org-roam-lies-map (kbd "k") #'orl-down-map)
+(keymap-set org-roam-lies-map (kbd "t") 'orl-time-worked)
 
 (define-key org-roam-lies-map (kbd "M-j") #'org-roam-lies-find-previous)
 (define-key org-roam-lies-map (kbd "M-l") #'org-roam-lies-find-forward)
