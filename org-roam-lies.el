@@ -29,36 +29,39 @@
 (require 'cal-iso)
 (require 'f)
 
+;; (load "~/.emacs.d/elpa/org-roam/extensions/org-roam-dailies.el")
+
 (defvar org-roam-directory)
 (defvar org-roam-file-extensions)
+(defvar org-roam-capture--info)
 (declare-function org-roam-file-p        "org-roam")
 
-(defcustom org-roam-dailies-dir "daily/"
+(defcustom orl-dailies-dir "daily/"
   "Path to daily-notes, relative to `org-roam-directory'."
   :group 'org-roam
   :type 'string)
 
-(defcustom org-roam-weeklies-dir "weekly/"
+(defcustom orl-weeklies-dir "weekly/"
   "Path to weekly-notes, relative to `org-roam-directory'."
   :group 'org-roam
   :type 'string)
 
-(defcustom org-roam-monthlies-dir "monthly/"
+(defcustom orl-monthlies-dir "monthly/"
   "Path to monthly-notes, relative to `org-roam-directory'."
   :group 'org-roam
   :type 'string)
 
-(defcustom org-roam-quarterlies-dir "quarterly/"
+(defcustom orl-quarterlies-dir "quarterly/"
   "Path to quarterly-notes, relative to `org-roam-directory'."
   :group 'org-roam
   :type 'string)
 
-(defcustom org-roam-yearlies-dir "yearly/"
+(defcustom orl-yearlies-dir "yearly/"
   "Path to yearly-notes, relative to `org-roam-directory'."
   :group 'org-roam
   :type 'string)
 
-(defcustom org-roam-everlies-dir "ever/"
+(defcustom orl-everlies-dir "ever/"
   "Path to everly-notes, relative to `org-roam-directory'."
   :group 'org-roam
   :type 'string)
@@ -99,7 +102,7 @@
 
 (defun time-period-start-and-end-times (time-period time-data)
   "Time-data is a list that depends on time-period, e.g., if time-period
-is 'day, then time-data is a list of the form (DAY MONTH YEAR)."
+is \='day, then time-data is a list of the form (DAY MONTH YEAR)."
   (pcase time-period
     ('day (apply #'day-start-and-end-times time-data))
     ('week (apply #'week-start-and-end-times time-data))
@@ -113,7 +116,7 @@ is 'day, then time-data is a list of the form (DAY MONTH YEAR)."
   "Checks whether the time span determined by time-period and
 time-data contains the time span determined by time-period-tc (to
 check) and time-data-tc. Time-data is a list that depends on
-time-period, e.g., if time-period is 'day, then time-data is a
+time-period, e.g., if time-period is \='day, then time-data is a
 list of the form (DAY MONTH YEAR)."
   (cl-destructuring-bind (start end) (time-period-start-and-end-times
                                       time-period-tc time-data-tc)
@@ -147,20 +150,21 @@ list of the form (DAY MONTH YEAR)."
       ((pred (lambda (new-month) (< new-month 1)))
        (encode-time sec min hour day (- 12 (+ month no-months)) (- year 1))))))
 
-(defun time-plus-quarter (time)
-  "if time represents the date, e.g., 15 june, then this will return the time of 15 sep."
+(with-no-warnings
+(defun time-plus-quarter (time no-months)
+  "no-months should be 1 or -1; if time represents the date 15 june,
+for example, then this will return the time of 15 sep, when no-months
+  is 1, and the time of 15 march, when no-months is -1."
   (pcase-let ((`(,sec ,min ,hour ,day ,month ,year)
                (decode-time time)))
-    (if (< month 10) (encode-time sec min hour day (+ month 3) year)
-      (encode-time sec min hour day (- month 9) (+ year 1)))))   
-
-(defun time-minus-quarter (time)
-  "If time represents the date, e.g., 15 june, then this will return the time of 15 march."
-  (pcase-let ((`(,sec ,min ,hour ,day ,month ,year)
-               (decode-time time)))
-    (if (> month 3) (encode-time sec min hour day (- month 3) year)
-      (encode-time sec min hour day (+ 9 month) (- year 1)))))
-
+    (if (equal no-months 1)
+        (if (< month 10) (encode-time sec min hour day (+ month 3) year)
+          (encode-time sec min hour day (- month 9) (+ year 1)))
+      (if (equal no-months -1)
+          (if (> month 3) (encode-time sec min hour day (- month 3) year)
+            (encode-time sec min hour day (+ 9 month) (- year 1)))
+        (message "time-plus-quarter should be 1 or -1"))))))
+    
 (defun time-plus-years (time no-years)
   (pcase-let ((`(,sec ,min ,hour ,day ,month ,year)
                (decode-time time)))
@@ -188,61 +192,61 @@ list of the form (DAY MONTH YEAR)."
 (defvar orl-ever-tag "orl-ever")
 
 (defun create-org-roam-lies-node (time-period time)
-  (let* (start-time end-time directory header template)
-    (cl-destructuring-bind (day week month quarter year) (time-to-day-week-month-quarter-year time)
+  (let* (start-time end-time directory template)
+    (cl-destructuring-bind (_ week month quarter year) (time-to-day-week-month-quarter-year time)
       (pcase time-period
         ('day
-         (setq directory org-roam-dailies-dir)            
+         (setq directory orl-dailies-dir)            
          (setq template
-               (make-template (concat org-roam-dailies-dir "%<%Y-%m-%d>.org")
+               (make-template (concat orl-dailies-dir "%<%Y-%m-%d>.org")
                               (concat "#+title:%<%Y-%m-%d>\n#+filetags: :"
                                       orl-day-tag ":\n\n" (format-time-string "%A, %F" time) "\n\n"))))
         ('week
-         (setq directory org-roam-weeklies-dir)
+         (setq directory orl-weeklies-dir)
          (cl-destructuring-bind (st et) (week-start-and-end-times week year)
            (setq start-time st end-time et))
          (setq template
-               (make-template (concat org-roam-weeklies-dir "%<%Y-W%U>.org")
+               (make-template (concat orl-weeklies-dir "%<%Y-W%U>.org")
                               (concat "#+title: %<%Y week %U>\n#+filetags: :" orl-week-tag ":\n\n"
                                       (format-time-string "%A, %F"
                                                           start-time)
                                       " -- "(format-time-string "%A, %F" end-time) "\n\n"))))
         ('month
-         (setq directory org-roam-monthlies-dir)
+         (setq directory orl-monthlies-dir)
          (cl-destructuring-bind (st et) (month-start-and-end-times month year)
            (setq start-time st end-time et))
          (setq template
-               (make-template (concat org-roam-monthlies-dir "%<%Y-%m>.org")
+               (make-template (concat orl-monthlies-dir "%<%Y-%m>.org")
                               (concat "#+title: %<%Y %B>\n#+filetags: :" orl-month-tag ":\n\n"
                                       (format-time-string "%A, %F"
                                                           start-time)
                                       " -- " (format-time-string "%A, %F" end-time) "\n\n"))))
         ('quarter
-         (setq directory org-roam-quarterlies-dir)
+         (setq directory orl-quarterlies-dir)
          (cl-destructuring-bind (st et) (quarter-start-and-end-times quarter year)
            (setq start-time st end-time et))
          (setq template
-               (make-template (concat org-roam-quarterlies-dir "%<%Y-%q>.org")
+               (make-template (concat orl-quarterlies-dir "%<%Y-%q>.org")
                               (concat "#+title: %<%Y quarter %q>\n#+filetags: :" orl-quarter-tag ":\n\n"
                                       (format-time-string "%A, %F"
                                                           start-time)
                                       " -- " (format-time-string "%A, %F" end-time) "\n\n"))))
         ('year
-         (setq directory org-roam-yearlies-dir)
+         (setq directory orl-yearlies-dir)
          (cl-destructuring-bind (st et) (year-start-and-end-times year)
            (setq start-time st end-time et))
          (setq template
-               (make-template (concat org-roam-yearlies-dir "%<%Y>.org")
+               (make-template (concat orl-yearlies-dir "%<%Y>.org")
                               (concat "#+title: %<%Y>\n#+filetags: :" orl-year-tag ":\n\n"
                                       (format-time-string "%A, %F"
                                                           start-time)
                                       " -- " (format-time-string "%A, %F" end-time) "\n\n"))))
         ('ever
-         (setq directory org-roam-everlies-dir)
+         (setq directory orl-everlies-dir)
          (cl-destructuring-bind (st et) (year-start-and-end-times year)
            (setq start-time st end-time et))
          (setq template
-               (make-template (concat org-roam-everlies-dir "ever.org")
+               (make-template (concat orl-everlies-dir "ever.org")
                               (concat "#+title: ever file\n#+filetags: :" orl-ever-tag ":\n\n"
                                       (format-time-string "%A, %F"
                                                           start-time)
@@ -258,7 +262,8 @@ list of the form (DAY MONTH YEAR)."
 ;;; util functions
 
 (defun org-roam-lies-get-node-time-period (&optional node)
-  "Return day, week, month, quarter, or ever if node is an Org-roam-lies node, nil otherwise.
+  "Return day, week, month, quarter, or ever if node is an
+Org-roam-lies node, nil otherwise.
 If node isn't specified, use node at point."
   (unless node (setq node (org-roam-node-at-point)))
   (let ((tag-list (org-roam-node-tags node)) return-str)
@@ -270,15 +275,16 @@ If node isn't specified, use node at point."
       (org-roam-lies-type-from-file-name (org-roam-node-file node)))))
 
 (defun org-roam-lies-type-from-file-name (&optional file)
-  "Return day, week, month, quarter, or ever if FILE is an Org-roam-lies note, nil otherwise.
+  "Return day, week, month, quarter, or ever if FILE is an
+Org-roam-lies note, nil otherwise.
 If FILE is not specified, use the current buffer's file-path."
   (interactive)
-  (let ((dd (expand-file-name org-roam-dailies-dir org-roam-directory))
-        (wd (expand-file-name org-roam-weeklies-dir org-roam-directory))
-        (md (expand-file-name org-roam-monthlies-dir org-roam-directory))
-        (qd (expand-file-name org-roam-quarterlies-dir org-roam-directory))
-        (yd (expand-file-name org-roam-yearlies-dir org-roam-directory))
-        (ed (expand-file-name org-roam-everlies-dir org-roam-directory)))
+  (let ((dd (expand-file-name orl-dailies-dir org-roam-directory))
+        (wd (expand-file-name orl-weeklies-dir org-roam-directory))
+        (md (expand-file-name orl-monthlies-dir org-roam-directory))
+        (qd (expand-file-name orl-quarterlies-dir org-roam-directory))
+        (yd (expand-file-name orl-yearlies-dir org-roam-directory))
+        (ed (expand-file-name orl-everlies-dir org-roam-directory)))
     (when-let ((path (expand-file-name
                       (or file
                           (buffer-file-name (buffer-base-buffer))))))
@@ -326,10 +332,10 @@ If FILE is not specified, use the current buffer's file-path."
 
 (defun time-in-time-period (&optional node)
   "returns a single time in the time period of the current file"
-  (car (node-start-and-end-times)))
+  (car (node-start-and-end-times node)))
 
 ;;; capture and visit functions
-
+(add-to-list 'org-roam-capture--template-keywords :override-default-time)
 (defun org-roam-lies--capture (time node &optional goto)
   "create a weekly, monthly, etc for time, creating it if neccessary"
   (org-roam-capture- :goto (when goto '(4))
@@ -427,8 +433,8 @@ If FILE is not specified, use the current buffer's file-path."
       ('day (setq time (time-plus-days (time-in-time-period) -1)))
       ('week (setq time (time-plus-weeks (time-in-time-period) -1)))
       ('month (setq time (time-plus-months (time-in-time-period) -1)))
-      ('quarter (setq time (time-minus-quarter (time-in-time-period))))
-      ('year (setq time (time-plus-years (time-in-time-period) -1))))
+      ('quarter (setq time (time-plus-quarter (time-in-time-period) -1)))
+      ('year (setq time (time-plus-years (time-in-time-period) -1))))    
     (org-roam-lies--capture time (create-org-roam-lies-node time-period time) t)))
 
 (defun org-roam-lies-find-forward ()
@@ -439,7 +445,7 @@ If FILE is not specified, use the current buffer's file-path."
       ('day (setq time (time-plus-days (time-in-time-period) 1)))
       ('week (setq time (time-plus-weeks (time-in-time-period) 1)))
       ('month (setq time (time-plus-months (time-in-time-period) 1)))
-      ('quarter (setq time (time-plus-quarter (time-in-time-period))))
+      ('quarter (setq time (time-plus-quarter (time-in-time-period) 1)))
       ('year (setq time (time-plus-years (time-in-time-period) 1))))
     (org-roam-lies--capture time (create-org-roam-lies-node time-period time) t)))
 
@@ -491,8 +497,9 @@ monthly or quarterly file."
 ;;; agenda and related functions
 
 (defun orl--files-under (time-period time-data) "The form of TIME-DATA
-depends on TIME-PERIOD, e.g., if time-period is 'week, then time-data
-should have the form (WEEK YEAR). Will return list of items of the form (TIME-PERIOD FILE-NAME)." 
+depends on TIME-PERIOD, e.g., if time-period is \='week, then
+time-data should have the form (WEEK YEAR). Will return list of
+items of the form (TIME-PERIOD FILE-NAME)." 
        (let (tag-vec return-list)
          (pcase time-period
            ('day (setq tag-vec ["orl-day"]))
@@ -537,13 +544,13 @@ buffer, or full-filename if provided."
   (interactive)  
   (unless full-filename (setq full-filename (buffer-file-name)))
   (setq params (org-combine-plists org-clocktable-defaults params))
-  (let ((files
+  (let* ((files
          (save-window-excursion
            (find-file full-filename)    
-           (setq files (orl--files-under
+           (orl--files-under
                         (org-roam-lies-get-node-time-period)
                         (orl--time-data-from-file-name
-                         (org-roam-lies-get-node-time-period) full-filename)))))
+                         (org-roam-lies-get-node-time-period) full-filename))))
          (tables
 	  (if (consp files)
 	      (mapcar (lambda (file)
@@ -553,7 +560,7 @@ buffer, or full-filename if provided."
 			      (org-clock-get-table-data file params)))))
 		      files)))
          (worked-minutes 0))
-    (pcase-dolist (`(,file-name ,file-time ,entries) tables)
+    (pcase-dolist (`(,_ ,file-time ,_) tables)
       (setq worked-minutes (+ worked-minutes file-time)))
     (message "Worked %s hours" (org-duration-from-minutes
   worked-minutes 'h:mm))))
