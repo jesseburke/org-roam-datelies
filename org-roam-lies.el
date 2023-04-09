@@ -563,7 +563,18 @@ buffer, or full-filename if provided."
     (pcase-dolist (`(,_ ,file-time ,_) tables)
       (setq worked-minutes (+ worked-minutes file-time)))
     (message "Worked %s hours" (org-duration-from-minutes
-  worked-minutes 'h:mm))))
+                                worked-minutes 'h:mm))))
+
+(defun orl-clock-whole-day ()
+  "When called on an entry in an orl-day buffer, adds time clocked from 9:00 until 16:36."
+  (interactive)
+  (let* ((day-string (file-name-base (buffer-file-name (buffer-base-buffer))))
+        (start-time
+         (org-time-string-to-time (concat day-string " 09:00")))
+        (end-time
+         (org-time-string-to-time (concat day-string " 16:36"))))
+    (org-clock-in nil start-time)
+    (org-clock-out nil nil end-time)))
 
 (defun orl-refile (copy-p direction)
   "DIRECTION should be a character and either j for previous, l for
