@@ -25,6 +25,7 @@
 ;; Boston, MA 02110-1301, USA.
 
 ;;; vars and customizations
+(setq org-roam-database-connector 'sqlite-builtin)
 (require 'org-roam)
 (require 'cal-iso)
 (require 'f)
@@ -519,7 +520,7 @@ items of the form (TIME-PERIOD FILE-NAME)."
                                        (intern (substring tag 4))
                                        file))))
          (cl-loop for (file time-period-to-check time-data-to-check) in return-list
-                  when (time-period-under-time-period-p time-period time-data time-period-to-check time-data-to-check)
+                  when ('time-period-under-time-period-p time-period time-data time-period-to-check time-data-to-check)
                   collect file)))
 
 (defun org-roam-lies-agenda (&optional full-filename)
