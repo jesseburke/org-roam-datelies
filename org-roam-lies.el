@@ -67,7 +67,28 @@
   :group 'org-roam
   :type 'string)
 
+(defcustom orl-day-tag "orl-day" "tag for orl" :group 'org-roam
+  :type 'string)
+(defcustom orl-week-tag "orl-week" "tag for orl" :group 'org-roam
+  :type 'string)
+(defcustom orl-month-tag "orl-month" "tag for orl" :group 'org-roam
+  :type 'string)
+(defcustom orl-quarter-tag "orl-quarter" "tag for orl" :group 'org-roam
+  :type 'string)
+(defcustom orl-year-tag "orl-year" "tag for orl" :group 'org-roam
+  :type 'string)
+(defcustom orl-ever-tag "orl-ever" "tag for orl" :group 'org-roam
+  :type 'string)
+
 ;;; time functions
+
+(defun iso-week-to-time (year week day &optional hour min)
+  (unless hour (setq hour 0))
+  (unless min (setq min 0))
+  (pcase-let ((`(,m ,d ,y)
+               (calendar-gregorian-from-absolute
+                (calendar-iso-to-absolute (list week day year)))))
+    (encode-time 0 min hour d m y)))
 
 (defun time-in-time-period-p (time-to-check time-period time-data)
   (cl-destructuring-bind (start-time end-time)
@@ -128,14 +149,6 @@ list of the form (DAY MONTH YEAR)."
   (interactive)
   (time-add time (* 86400 no-days)))
 
-(defun iso-week-to-time (year week day &optional hour min)
-  (unless hour (setq hour 0))
-  (unless min (setq min 0))
-  (pcase-let ((`(,m ,d ,y)
-               (calendar-gregorian-from-absolute
-                (calendar-iso-to-absolute (list week day year)))))
-    (encode-time 0 min hour d m y)))
-
 (defun time-plus-weeks (time no-weeks)
   (interactive)
   (time-add time (* 86400 7 no-weeks)))
@@ -185,12 +198,10 @@ for example, then this will return the time of 15 sep, when no-months
 (cl-defstruct (org-roam-lies-node (:include org-roam-node) (:predicate nil) (:constructor org-roam-lies-node-create))
   time-period time directory template)
 
-(defvar orl-day-tag "orl-day")
-(defvar orl-week-tag "orl-week")
-(defvar orl-month-tag "orl-month")
-(defvar orl-quarter-tag "orl-quarter")
-(defvar orl-year-tag "orl-year")
-(defvar orl-ever-tag "orl-ever")
+(defun make-orl--template (file-str head-str)
+  `("d" "default" entry
+    "* %?"
+    :if-new (file+head ,file-str ,head-str)))
 
 (defun create-org-roam-lies-node (time-period time)
   (let* (start-time end-time directory template)
@@ -199,7 +210,7 @@ for example, then this will return the time of 15 sep, when no-months
         ('day
          (setq directory orl-dailies-dir)            
          (setq template
-               (make-template (concat orl-dailies-dir "%<%Y-%m-%d>.org")
+               (make-orl--template (concat orl-dailies-dir "%<%Y-%m-%d>.org")
                               (concat "#+title:%<%Y-%m-%d>\n#+filetags: :"
                                       orl-day-tag ":\n\n" (format-time-string "%A, %F" time) "\n\n"))))
         ('week
@@ -207,7 +218,7 @@ for example, then this will return the time of 15 sep, when no-months
          (cl-destructuring-bind (st et) (week-start-and-end-times week year)
            (setq start-time st end-time et))
          (setq template
-               (make-template (concat orl-weeklies-dir "%<%Y-W%U>.org")
+               (make-orl--template (concat orl-weeklies-dir "%<%Y-W%U>.org")
                               (concat "#+title: %<%Y week %U>\n#+filetags: :" orl-week-tag ":\n\n"
                                       (format-time-string "%A, %F"
                                                           start-time)
@@ -217,7 +228,7 @@ for example, then this will return the time of 15 sep, when no-months
          (cl-destructuring-bind (st et) (month-start-and-end-times month year)
            (setq start-time st end-time et))
          (setq template
-               (make-template (concat orl-monthlies-dir "%<%Y-%m>.org")
+               (make-orl--template (concat orl-monthlies-dir "%<%Y-%m>.org")
                               (concat "#+title: %<%Y %B>\n#+filetags: :" orl-month-tag ":\n\n"
                                       (format-time-string "%A, %F"
                                                           start-time)
@@ -227,7 +238,7 @@ for example, then this will return the time of 15 sep, when no-months
          (cl-destructuring-bind (st et) (quarter-start-and-end-times quarter year)
            (setq start-time st end-time et))
          (setq template
-               (make-template (concat orl-quarterlies-dir "%<%Y-%q>.org")
+               (make-orl--template (concat orl-quarterlies-dir "%<%Y-%q>.org")
                               (concat "#+title: %<%Y quarter %q>\n#+filetags: :" orl-quarter-tag ":\n\n"
                                       (format-time-string "%A, %F"
                                                           start-time)
@@ -237,7 +248,7 @@ for example, then this will return the time of 15 sep, when no-months
          (cl-destructuring-bind (st et) (year-start-and-end-times year)
            (setq start-time st end-time et))
          (setq template
-               (make-template (concat orl-yearlies-dir "%<%Y>.org")
+               (make-orl--template (concat orl-yearlies-dir "%<%Y>.org")
                               (concat "#+title: %<%Y>\n#+filetags: :" orl-year-tag ":\n\n"
                                       (format-time-string "%A, %F"
                                                           start-time)
@@ -247,7 +258,7 @@ for example, then this will return the time of 15 sep, when no-months
          (cl-destructuring-bind (st et) (year-start-and-end-times year)
            (setq start-time st end-time et))
          (setq template
-               (make-template (concat orl-everlies-dir "ever.org")
+               (make-orl--template (concat orl-everlies-dir "ever.org")
                               (concat "#+title: ever file\n#+filetags: :" orl-ever-tag ":\n\n"
                                       (format-time-string "%A, %F"
                                                           start-time)
@@ -255,12 +266,7 @@ for example, then this will return the time of 15 sep, when no-months
       (org-roam-lies-node-create :time-period time-period :time time
                                  :directory directory :template template))))
 
-(defun make-template (file-str head-str)
-  `("d" "default" entry
-    "* %?"
-    :if-new (file+head ,file-str ,head-str)))
-
-;;; util functions
+;;; node util functions
 
 (defun org-roam-lies-get-node-time-period (&optional node)
   "Return day, week, month, quarter, or ever if node is an
@@ -323,7 +329,7 @@ If FILE is not specified, use the current buffer's file-path."
     ('year
      (list (string-to-number (substring filename 0 4))))))
 
-(defun node-start-and-end-times (&optional node)
+(defun orl--node-start-and-end-times (&optional node)
   "Returns a list of the form (start-time end-time)."
   (unless node (setq node (org-roam-node-at-point)))
   (let* ((timeperiod (org-roam-lies-get-node-time-period))
@@ -331,12 +337,14 @@ If FILE is not specified, use the current buffer's file-path."
          (timedata (orl--time-data-from-file-name timeperiod filename)))
     (time-period-start-and-end-times timeperiod timedata)))
 
-(defun time-in-time-period (&optional node)
+(defun orl--time-in-node-time-period (&optional node)
   "returns a single time in the time period of the current file"
-  (car (node-start-and-end-times node)))
+  (car (orl--node-start-and-end-times node)))
 
-;;; capture and visit functions
-(add-to-list 'org-roam-capture--template-keywords :override-default-time)
+;;; capture
+(add-to-list 'org-roam-capture--template-keywords
+             :override-default-time)
+
 (defun org-roam-lies--capture (time node &optional goto)
   "create a weekly, monthly, etc for time, creating it if neccessary"
   (org-roam-capture- :goto (when goto '(4))
@@ -353,6 +361,7 @@ If FILE is not specified, use the current buffer's file-path."
     (when (org-roam-capture--get :override-default-time)
       (org-capture-put :default-time (org-roam-capture--get :override-default-time)))))
 
+;;; find functions
 (defun org-roam-lies-find-this-day ()
   "Find the daily-note for today, creating it if necessary."
   (interactive)
@@ -424,18 +433,18 @@ If FILE is not specified, use the current buffer's file-path."
   (interactive)
   (org-roam-lies--capture (current-time) (create-org-roam-lies-node 'ever (current-time)) t))
 
-;;; move relative
+;;; find relative
 
 (defun org-roam-lies-find-previous ()
   "Goto the previous lies note in the current time-period."
   (interactive)
   (let ((time-period (org-roam-lies-get-node-time-period)) time)
     (pcase time-period
-      ('day (setq time (time-plus-days (time-in-time-period) -1)))
-      ('week (setq time (time-plus-weeks (time-in-time-period) -1)))
-      ('month (setq time (time-plus-months (time-in-time-period) -1)))
-      ('quarter (setq time (time-plus-quarter (time-in-time-period) -1)))
-      ('year (setq time (time-plus-years (time-in-time-period) -1))))    
+      ('day (setq time (time-plus-days (orl--time-in-node-time-period) -1)))
+      ('week (setq time (time-plus-weeks (orl--time-in-node-time-period) -1)))
+      ('month (setq time (time-plus-months (orl--time-in-node-time-period) -1)))
+      ('quarter (setq time (time-plus-quarter (orl--time-in-node-time-period) -1)))
+      ('year (setq time (time-plus-years (orl--time-in-node-time-period) -1))))    
     (org-roam-lies--capture time (create-org-roam-lies-node time-period time) t)))
 
 (defun org-roam-lies-find-forward ()
@@ -443,11 +452,11 @@ If FILE is not specified, use the current buffer's file-path."
   (interactive)
   (let ((time-period (org-roam-lies-get-node-time-period)) time)
     (pcase time-period
-      ('day (setq time (time-plus-days (time-in-time-period) 1)))
-      ('week (setq time (time-plus-weeks (time-in-time-period) 1)))
-      ('month (setq time (time-plus-months (time-in-time-period) 1)))
-      ('quarter (setq time (time-plus-quarter (time-in-time-period) 1)))
-      ('year (setq time (time-plus-years (time-in-time-period) 1))))
+      ('day (setq time (time-plus-days (orl--time-in-node-time-period) 1)))
+      ('week (setq time (time-plus-weeks (orl--time-in-node-time-period) 1)))
+      ('month (setq time (time-plus-months (orl--time-in-node-time-period) 1)))
+      ('quarter (setq time (time-plus-quarter (orl--time-in-node-time-period) 1)))
+      ('year (setq time (time-plus-years (orl--time-in-node-time-period) 1))))
     (org-roam-lies--capture time (create-org-roam-lies-node time-period time) t)))
 
 (defun org-roam-lies-find-up ()
@@ -456,7 +465,7 @@ containing the first day of the file's week; analogous if in
 monthly or quarterly file."
   (interactive)
   (let* ((time-period (org-roam-lies-get-node-time-period))
-         (time (time-in-time-period)) node)
+         (time (orl--time-in-node-time-period)) node)
     (pcase time-period 
       ('day (setq node (create-org-roam-lies-node 'week time)))
       ('week (setq node (create-org-roam-lies-node 'month time)))
@@ -471,7 +480,7 @@ monthly or quarterly file."
    etc."
   (interactive)
   (let ((time-period (org-roam-lies-get-node-time-period))
-        (start-time (car (node-start-and-end-times)))
+        (start-time (car (orl--node-start-and-end-times)))
         new-time-period)
     (pcase time-period
       ('week (setq new-time-period 'day))
@@ -486,7 +495,7 @@ monthly or quarterly file."
    etc."
   (interactive)
   (let ((time-period (org-roam-lies-get-node-time-period))
-        (end-time (cadr (node-start-and-end-times)))
+        (end-time (cadr (orl--node-start-and-end-times)))
         new-time-period)
     (pcase time-period
       ('week (setq new-time-period 'day))
