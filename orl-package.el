@@ -37,154 +37,62 @@
 (defvar org-roam-capture--info)
 (declare-function org-roam-file-p        "org-roam")
 
-(defgroup org-roam-lies nil
-  "day, week, etc files for org-roam."
-  :group 'org-roam
-  :prefix "org-roam-lies-"
-  :link '(url-link :tag "Github" "https://github.com/jesseburke/org-roam-lies"))  
-
 (defcustom orl-dailies-dir "daily/"
   "Path to daily-notes, relative to `org-roam-directory'."
-  :group 'org-roam-lies
+  :group 'org-roam
   :type 'string)
 
 (defcustom orl-weeklies-dir "weekly/"
   "Path to weekly-notes, relative to `org-roam-directory'."
-  :group 'org-roam-lies
+  :group 'org-roam
   :type 'string)
 
 (defcustom orl-monthlies-dir "monthly/"
   "Path to monthly-notes, relative to `org-roam-directory'."
-  :group 'org-roam-lies
+  :group 'org-roam
   :type 'string)
 
 (defcustom orl-quarterlies-dir "quarterly/"
   "Path to quarterly-notes, relative to `org-roam-directory'."
-  :group 'org-roam-lies
+  :group 'org-roam
   :type 'string)
 
 (defcustom orl-yearlies-dir "yearly/"
   "Path to yearly-notes, relative to `org-roam-directory'."
-  :group 'org-roam-lies
+  :group 'org-roam
   :type 'string)
 
 (defcustom orl-everlies-dir "ever/"
   "Path to everly-notes, relative to `org-roam-directory'."
-  :group 'org-roam-lies
+  :group 'org-roam
   :type 'string)
 
-(defcustom orl-day-tag "orl-day" "tag for orl" :group 'org-roam-lies
-  :type 'string)
-(defcustom orl-week-tag "orl-week" "tag for orl" :group 'org-roam-lies
-  :type 'string)
-(defcustom orl-month-tag "orl-month" "tag for orl" :group 'org-roam-lies
-  :type 'string)
-(defcustom orl-quarter-tag "orl-quarter" "tag for orl" :group 'org-roam-lies
-  :type 'string)
-(defcustom orl-year-tag "orl-year" "tag for orl" :group 'org-roam-lies
-  :type 'string)
-(defcustom orl-ever-tag "orl-ever" "tag for orl" :group 'org-roam-lies
-  :type 'string)
+;;; time functions
 
-(defvar orl-tag-list (list orl-day-tag orl-week-tag orl-month-tag
-                           orl-quarter-tag orl-year-tag orl-ever-tag))
+(defun iso-week-to-time (year week day &optional hour min)
+  (unless hour (setq hour 0))
+  (unless min (setq min 0))
+  (pcase-let ((`(,m ,d ,y)
+               (calendar-gregorian-from-absolute
+                (calendar-iso-to-absolute (list week day year)))))
+    (encode-time 0 min hour d m y)))
 
-(defun org-roam-node-has-orl-tags-p (node)
-  (let ((node-tag-list (org-roam-node-tags node)))
-    (cl-some (lambda (tag) (member tag orl-tag-list)) node-tag-list)))
+(defun time-in-time-period-p (time-to-check time-period time-data)
+  (cl-destructuring-bind (start-time end-time)
+      (time-period-start-and-end-times time-period time-data)
+    (and (or (time-equal-p start-time time-to-check)
+             (time-less-p start-time time-to-check))
+         (or (time-equal-p time-to-check end-time)
+             (time-less-p time-to-check end-time)))))
 
-;;; date and time functions
-
-;;;; time plus ...
-(defun time-plus-days (time no-days)
-  (interactive)
-  (time-add time (* 86400 no-days)))
-
-(defun time-plus-weeks (time no-weeks)
-  (interactive)
-  (time-add time (* 86400 7 no-weeks)))
-
-(defun time-plus-months (time no-months)
-  "NO-MONTHS should be between -11 and 11."
-  (cl-destructuring-bind (sec min hour day month year _ _ _) (decode-time time)
-    (pcase (+ month no-months)
-      ((pred (lambda (new-month) (<= new-month 12)))
-       (encode-time sec min hour day (+ month no-months) year))
-      ((pred (lambda (new-month) (> new-month 12)))
-       (encode-time sec min hour day (- (+ month no-months) 12) (+ year 1)))
-      ((pred (lambda (new-month) (< new-month 1)))
-       (encode-time sec min hour day (- 12 (+ month no-months)) (- year 1))))))
-
-(with-no-warnings
-  (defun time-plus-quarter (time no-months)
-    "NO-MONTHS should be 1 or -1; if TIME represents the date 15 june,
-for example, then this will return the time of 15 sep, when no-months
-  is 1, and the time of 15 march, when no-months is -1."
-    (pcase-let ((`(,sec ,min ,hour ,day ,month ,year)
-                 (decode-time time)))
-      (if (equal no-months 1)
-          (if (< month 10) (encode-time sec min hour day (+ month 3) year)
-            (encode-time sec min hour day (- month 9) (+ year 1)))
-        (if (equal no-months -1)
-            (if (> month 3) (encode-time sec min hour day (- month 3) year)
-              (encode-time sec min hour day (+ 9 month) (- year 1)))
-          (message "time-plus-quarter should be 1 or -1")))))) 
-    
-(defun time-plus-years (time no-years)
-  (pcase-let ((`(,sec ,min ,hour ,day ,month ,year)
-               (decode-time time)))
-    (encode-time sec min hour day month (+ year no-years))))
-
-;;;; time to dates
-
-;; This needs more care because week numbers can be a bit tricky.
-(defun time-to-week-number-and-year (time)
-  "The first week of the year is the week that contains Jan 1. This
-  function works by finding the day of the week, 0(Sunday) - 6,
-of time. Uses this to find the Saturday of the week containing
-time. Subtracting a given time on this Saturday from the Saturday
-of week 1, can calculate how many weeks the difference is."
-  (let* ((time-day-of-week (string-to-number (format-time-string "%w" time)))
-         (year (string-to-number (format-time-string "%Y" time)))
-         (time-on-week-end-day (time-plus-days time (- 7 (1+ time-day-of-week))))
-         (week1-end-time (cadr (week1-start-and-end-times year)))
-         (time-difference-in-secs (floor (float-time (time-subtract time-on-week-end-day week1-end-time ))))
-         (secs-in-a-week (* 7 (* 24 (* 60 60)))))
-    (1+ (/ time-difference-in-secs secs-in-a-week))))
-  
-(defun time-to-day-week-month-quarter-year (time)
-  (let* ((str (format-time-string "%Y%q%m%d" time))
-         (year (string-to-number (substring str 0 4)))
-         (quarter (string-to-number (substring str 4 5)))
-         (month (string-to-number (substring str 5 7)))
-         (day (string-to-number (substring str 7 9)))
-         (week (time-to-week-number-and-year time)))
-    (list day week month quarter year)))
-
-;;;; date to time
-  
 (defun day-start-and-end-times (day month year)
   (list (encode-time 1 0 0 day month year)
         (encode-time 59 59 11 day month year)))
 
-(defun week1-start-and-end-times (year)
-  "Returns a time on the start day and a time on the end day of the week containing Jan. 1, YEAR."
-  (let* ((jan1-time (car (day-start-and-end-times 1 1 year)))
-         (jan1-day-of-week (string-to-number (format-time-string "%w" jan1-time)))
-         start-time end-time)
-    (if (eq jan1-day-of-week 0)
-        (progn (setq start-time (encode-time 1 0 0 1 1 year))
-               (setq end-time (encode-time 1 0 0 6 1 year)))
-      (setq start-time (encode-time 1 0 0 (- 31 (1- jan1-day-of-week)) 12 (1- year)))
-      (setq end-time (encode-time 1 0 0 (- 7 jan1-day-of-week) 1 year)))
-    (list start-time end-time)))
-
 (defun week-start-and-end-times (week year)
-  "Returns a time on the start day and a time on the end day of the
-week WEEK on YEAR. Weeks are numbered so that the week that Jan 1
-occurs in is Week 1."
-  (seq-map (lambda (time) (time-plus-weeks time (1- week))) (week1-start-and-end-times
-                                                             year)))
+  (let ((start-time (iso-week-to-time year (- week 1) 0))
+        (end-time (iso-week-to-time year week 6 23 59)))
+    (list start-time end-time)))
 
 (defun month-start-and-end-times (month year)
   (list (encode-time 0 0 0 1 month year)
@@ -211,14 +119,6 @@ is \='day, then time-data is a list of the form (DAY MONTH YEAR)."
     ('quarter (apply #'quarter-start-and-end-times time-data))
     ('year (apply #'year-start-and-end-times time-data))))
 
-(defun time-in-time-period-p (time-to-check time-period time-data)
-  (cl-destructuring-bind (start-time end-time)
-      (time-period-start-and-end-times time-period time-data)
-    (and (or (time-equal-p start-time time-to-check)
-             (time-less-p start-time time-to-check))
-         (or (time-equal-p time-to-check end-time)
-             (time-less-p time-to-check end-time)))))
-
 (defun time-period-under-time-period-p (time-period time-data
                                                     time-period-tc
                                                     time-data-tc)
@@ -232,76 +132,135 @@ list of the form (DAY MONTH YEAR)."
     (and (time-in-time-period-p start time-period time-data)
          (time-in-time-period-p end time-period time-data))))
 
+(defun time-plus-days (time no-days)
+  (interactive)
+  (time-add time (* 86400 no-days)))
+
+(defun time-plus-weeks (time no-weeks)
+  (interactive)
+  (time-add time (* 86400 7 no-weeks)))
+
+(defun time-plus-months (time no-months)
+  "no-months should be between -11 and 11"
+  (cl-destructuring-bind (sec min hour day month year _ _ _) (decode-time time)
+    (pcase (+ month no-months)
+      ((pred (lambda (new-month) (<= new-month 12)))
+       (encode-time sec min hour day (+ month no-months) year))
+      ((pred (lambda (new-month) (> new-month 12)))
+       (encode-time sec min hour day (- (+ month no-months) 12) (+ year 1)))
+      ((pred (lambda (new-month) (< new-month 1)))
+       (encode-time sec min hour day (- 12 (+ month no-months)) (- year 1))))))
+
+(with-no-warnings
+(defun time-plus-quarter (time no-months)
+  "no-months should be 1 or -1; if time represents the date 15 june,
+for example, then this will return the time of 15 sep, when no-months
+  is 1, and the time of 15 march, when no-months is -1."
+  (pcase-let ((`(,sec ,min ,hour ,day ,month ,year)
+               (decode-time time)))
+    (if (equal no-months 1)
+        (if (< month 10) (encode-time sec min hour day (+ month 3) year)
+          (encode-time sec min hour day (- month 9) (+ year 1)))
+      (if (equal no-months -1)
+          (if (> month 3) (encode-time sec min hour day (- month 3) year)
+            (encode-time sec min hour day (+ 9 month) (- year 1)))
+        (message "time-plus-quarter should be 1 or -1"))))))
+    
+(defun time-plus-years (time no-years)
+  (pcase-let ((`(,sec ,min ,hour ,day ,month ,year)
+               (decode-time time)))
+    (encode-time sec min hour day month (+ year no-years))))
+
+(defun time-to-day-week-month-quarter-year (time)
+  (let* ((str (format-time-string "%Y%q%m%U%d" time))
+         (year (string-to-number (substring str 0 4)))
+         (quarter (string-to-number (substring str 4 5)))
+         (month (string-to-number (substring str 5 7)))
+         (week (string-to-number (substring str 7 9)))
+         (day (string-to-number (substring str 9 11))))
+    (list day week month quarter year)))
+
 ;;; org-roam-lies-node definition
 
-(cl-defstruct (org-roam-lies-node (:include org-roam-node) (:constructor org-roam-lies-node-create))
+(cl-defstruct (org-roam-lies-node (:include org-roam-node) (:predicate nil) (:constructor org-roam-lies-node-create))
   time-period time directory template)
 
-(defun make-orl--template (file-str head-str)
-  `("d" "default" entry
-    "* %?"
-    :if-new (file+head ,file-str ,head-str)))
+(defvar orl-day-tag "orl-day")
+(defvar orl-week-tag "orl-week")
+(defvar orl-month-tag "orl-month")
+(defvar orl-quarter-tag "orl-quarter")
+(defvar orl-year-tag "orl-year")
+(defvar orl-ever-tag "orl-ever")
 
 (defun create-org-roam-lies-node (time-period time)
-  (let* (directory template)
+  (let* (start-time end-time directory template)
     (cl-destructuring-bind (_ week month quarter year) (time-to-day-week-month-quarter-year time)
       (pcase time-period
         ('day
          (setq directory orl-dailies-dir)            
          (setq template
-               (make-orl--template (concat orl-dailies-dir "%<%Y-%m-%d>.org")
-                                   (concat "#+title:%<%Y-%m-%d>\n#+filetags: :"
-                                           orl-day-tag ":\n\n" (format-time-string "%A, %F" time) "\n\n"))))
+               (make-template (concat orl-dailies-dir "%<%Y-%m-%d>.org")
+                              (concat "#+title:%<%Y-%m-%d>\n#+filetags: :"
+                                      orl-day-tag ":\n\n" (format-time-string "%A, %F" time) "\n\n"))))
         ('week
          (setq directory orl-weeklies-dir)
          (cl-destructuring-bind (st et) (week-start-and-end-times week year)
            (setq start-time st end-time et))
          (setq template
-               (make-orl--template (concat orl-weeklies-dir "%<%Y-W%U>.org")
-                                   (concat "#+title: %<%Y week %U>\n#+filetags: :" orl-week-tag ":\n\n"
-                                           (format-time-string "%A, %F"
-                                                               start-time)
-                                           " -- "(format-time-string "%A, %F" end-time) "\n\n"))))
+               (make-template (concat orl-weeklies-dir "%<%Y-W%U>.org")
+                              (concat "#+title: %<%Y week %U>\n#+filetags: :" orl-week-tag ":\n\n"
+                                      (format-time-string "%A, %F"
+                                                          start-time)
+                                      " -- "(format-time-string "%A, %F" end-time) "\n\n"))))
         ('month
          (setq directory orl-monthlies-dir)
-         (cl-destructuring-bind (start-time end-time) (month-start-and-end-times month year)
-           (setq template
-                 (make-orl--template (concat orl-monthlies-dir "%<%Y-%m>.org")
-                                     (concat "#+title: %<%Y %B>\n#+filetags: :" orl-month-tag ":\n\n"
-                                             (format-time-string "%A, %F"
-                                                                 start-time)
-                                             " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
+         (cl-destructuring-bind (st et) (month-start-and-end-times month year)
+           (setq start-time st end-time et))
+         (setq template
+               (make-template (concat orl-monthlies-dir "%<%Y-%m>.org")
+                              (concat "#+title: %<%Y %B>\n#+filetags: :" orl-month-tag ":\n\n"
+                                      (format-time-string "%A, %F"
+                                                          start-time)
+                                      " -- " (format-time-string "%A, %F" end-time) "\n\n"))))
         ('quarter
          (setq directory orl-quarterlies-dir)
-         (cl-destructuring-bind (start-time end-time) (quarter-start-and-end-times quarter year)
-           (setq template
-                 (make-orl--template (concat orl-quarterlies-dir "%<%Y-%q>.org")
-                                     (concat "#+title: %<%Y quarter %q>\n#+filetags: :" orl-quarter-tag ":\n\n"
-                                             (format-time-string "%A, %F"
-                                                                 start-time)
-                                             " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
+         (cl-destructuring-bind (st et) (quarter-start-and-end-times quarter year)
+           (setq start-time st end-time et))
+         (setq template
+               (make-template (concat orl-quarterlies-dir "%<%Y-%q>.org")
+                              (concat "#+title: %<%Y quarter %q>\n#+filetags: :" orl-quarter-tag ":\n\n"
+                                      (format-time-string "%A, %F"
+                                                          start-time)
+                                      " -- " (format-time-string "%A, %F" end-time) "\n\n"))))
         ('year
          (setq directory orl-yearlies-dir)
-         (cl-destructuring-bind (start-time end-time) (year-start-and-end-times year)
-           (setq template
-                 (make-orl--template (concat orl-yearlies-dir "%<%Y>.org")
-                                     (concat "#+title: %<%Y>\n#+filetags: :" orl-year-tag ":\n\n"
-                                             (format-time-string "%A, %F"
-                                                                 start-time)
-                                             " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
+         (cl-destructuring-bind (st et) (year-start-and-end-times year)
+           (setq start-time st end-time et))
+         (setq template
+               (make-template (concat orl-yearlies-dir "%<%Y>.org")
+                              (concat "#+title: %<%Y>\n#+filetags: :" orl-year-tag ":\n\n"
+                                      (format-time-string "%A, %F"
+                                                          start-time)
+                                      " -- " (format-time-string "%A, %F" end-time) "\n\n"))))
         ('ever
          (setq directory orl-everlies-dir)
-         (cl-destructuring-bind (start-time end-time) (year-start-and-end-times year)
+         (cl-destructuring-bind (st et) (year-start-and-end-times year)
+           (setq start-time st end-time et))
          (setq template
-               (make-orl--template (concat orl-everlies-dir "ever.org")
-                                   (concat "#+title: ever file\n#+filetags: :" orl-ever-tag ":\n\n"
-                                           (format-time-string "%A, %F"
-                                                               start-time)
-                                           " -- " (format-time-string "%A, %F" end-time) "\n\n")))))))
+               (make-template (concat orl-everlies-dir "ever.org")
+                              (concat "#+title: ever file\n#+filetags: :" orl-ever-tag ":\n\n"
+                                      (format-time-string "%A, %F"
+                                                          start-time)
+                                      " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
       (org-roam-lies-node-create :time-period time-period :time time
-                                 :directory directory :template template)))
+                                 :directory directory :template template))))
 
-;;; node util functions
+(defun make-template (file-str head-str)
+  `("d" "default" entry
+    "* %?"
+    :if-new (file+head ,file-str ,head-str)))
+
+;;; util functions
 
 (defun org-roam-lies-get-node-time-period (&optional node)
   "Return day, week, month, quarter, or ever if node is an
@@ -364,7 +323,7 @@ If FILE is not specified, use the current buffer's file-path."
     ('year
      (list (string-to-number (substring filename 0 4))))))
 
-(defun orl--node-start-and-end-times (&optional node)
+(defun node-start-and-end-times (&optional node)
   "Returns a list of the form (start-time end-time)."
   (unless node (setq node (org-roam-node-at-point)))
   (let* ((timeperiod (org-roam-lies-get-node-time-period))
@@ -372,14 +331,12 @@ If FILE is not specified, use the current buffer's file-path."
          (timedata (orl--time-data-from-file-name timeperiod filename)))
     (time-period-start-and-end-times timeperiod timedata)))
 
-(defun orl--time-in-node-time-period (&optional node)
+(defun time-in-time-period (&optional node)
   "returns a single time in the time period of the current file"
-  (car (orl--node-start-and-end-times node)))
+  (car (node-start-and-end-times node)))
 
-;;; capture
-(add-to-list 'org-roam-capture--template-keywords
-             :override-default-time)
-
+;;; capture and visit functions
+(add-to-list 'org-roam-capture--template-keywords :override-default-time)
 (defun org-roam-lies--capture (time node &optional goto)
   "create a weekly, monthly, etc for time, creating it if neccessary"
   (org-roam-capture- :goto (when goto '(4))
@@ -396,7 +353,6 @@ If FILE is not specified, use the current buffer's file-path."
     (when (org-roam-capture--get :override-default-time)
       (org-capture-put :default-time (org-roam-capture--get :override-default-time)))))
 
-;;; find functions
 (defun org-roam-lies-find-this-day ()
   "Find the daily-note for today, creating it if necessary."
   (interactive)
@@ -468,18 +424,18 @@ If FILE is not specified, use the current buffer's file-path."
   (interactive)
   (org-roam-lies--capture (current-time) (create-org-roam-lies-node 'ever (current-time)) t))
 
-;;; find relative
+;;; move relative
 
 (defun org-roam-lies-find-previous ()
   "Goto the previous lies note in the current time-period."
   (interactive)
   (let ((time-period (org-roam-lies-get-node-time-period)) time)
     (pcase time-period
-      ('day (setq time (time-plus-days (orl--time-in-node-time-period) -1)))
-      ('week (setq time (time-plus-weeks (orl--time-in-node-time-period) -1)))
-      ('month (setq time (time-plus-months (orl--time-in-node-time-period) -1)))
-      ('quarter (setq time (time-plus-quarter (orl--time-in-node-time-period) -1)))
-      ('year (setq time (time-plus-years (orl--time-in-node-time-period) -1))))    
+      ('day (setq time (time-plus-days (time-in-time-period) -1)))
+      ('week (setq time (time-plus-weeks (time-in-time-period) -1)))
+      ('month (setq time (time-plus-months (time-in-time-period) -1)))
+      ('quarter (setq time (time-plus-quarter (time-in-time-period) -1)))
+      ('year (setq time (time-plus-years (time-in-time-period) -1))))    
     (org-roam-lies--capture time (create-org-roam-lies-node time-period time) t)))
 
 (defun org-roam-lies-find-forward ()
@@ -487,11 +443,11 @@ If FILE is not specified, use the current buffer's file-path."
   (interactive)
   (let ((time-period (org-roam-lies-get-node-time-period)) time)
     (pcase time-period
-      ('day (setq time (time-plus-days (orl--time-in-node-time-period) 1)))
-      ('week (setq time (time-plus-weeks (orl--time-in-node-time-period) 1)))
-      ('month (setq time (time-plus-months (orl--time-in-node-time-period) 1)))
-      ('quarter (setq time (time-plus-quarter (orl--time-in-node-time-period) 1)))
-      ('year (setq time (time-plus-years (orl--time-in-node-time-period) 1))))
+      ('day (setq time (time-plus-days (time-in-time-period) 1)))
+      ('week (setq time (time-plus-weeks (time-in-time-period) 1)))
+      ('month (setq time (time-plus-months (time-in-time-period) 1)))
+      ('quarter (setq time (time-plus-quarter (time-in-time-period) 1)))
+      ('year (setq time (time-plus-years (time-in-time-period) 1))))
     (org-roam-lies--capture time (create-org-roam-lies-node time-period time) t)))
 
 (defun org-roam-lies-find-up ()
@@ -500,7 +456,7 @@ containing the first day of the file's week; analogous if in
 monthly or quarterly file."
   (interactive)
   (let* ((time-period (org-roam-lies-get-node-time-period))
-         (time (orl--time-in-node-time-period)) node)
+         (time (time-in-time-period)) node)
     (pcase time-period 
       ('day (setq node (create-org-roam-lies-node 'week time)))
       ('week (setq node (create-org-roam-lies-node 'month time)))
@@ -515,7 +471,7 @@ monthly or quarterly file."
    etc."
   (interactive)
   (let ((time-period (org-roam-lies-get-node-time-period))
-        (start-time (car (orl--node-start-and-end-times)))
+        (start-time (car (node-start-and-end-times)))
         new-time-period)
     (pcase time-period
       ('week (setq new-time-period 'day))
@@ -530,7 +486,7 @@ monthly or quarterly file."
    etc."
   (interactive)
   (let ((time-period (org-roam-lies-get-node-time-period))
-        (end-time (cadr (orl--node-start-and-end-times)))
+        (end-time (cadr (node-start-and-end-times)))
         new-time-period)
     (pcase time-period
       ('week (setq new-time-period 'day))
