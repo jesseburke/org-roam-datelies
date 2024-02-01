@@ -139,27 +139,31 @@ for example, then this will return the time of 15 sep, when no-months
 
 ;; This needs more care because week numbers can be a bit tricky.
 (defun time-to-week-number-and-year (time)
-  "The first week of the year is the week that contains Jan 1. This
-  function works by finding the day of the week, 0(Sunday) - 6,
-of time. Uses this to find the Saturday of the week containing
-time. Subtracting a given time on this Saturday from the Saturday
-of week 1, can calculate how many weeks the difference is."
+  "Returns week number and year of the week containing TIME. The
+first week of a year is the week that contains Jan 1. E.g., Jan.
+1, 2024 is on a Monday, so this is W01-2024. And thus, this
+function returns (1 2024) when passed a time in the day Dec 31,
+2023. This function works by finding the day of the week,
+0(Sunday) - 6(Saturday), of time. Uses this to find the Saturday of the
+week containing time. Subtracting a given time on this Saturday
+from the Saturday of week 1, can calculate how many weeks the
+difference is."
   (let* ((time-day-of-week (string-to-number (format-time-string "%w" time)))
-         (year (string-to-number (format-time-string "%Y" time)))
-         (time-on-week-end-day (time-plus-days time (- 7 (1+ time-day-of-week))))
+         (time-on-week-end-day
+          (time-plus-days time (- 7 (1+ time-day-of-week))))
+         (year (string-to-number (format-time-string "%Y" time-on-week-end-day)))
          (week1-end-time (cadr (week1-start-and-end-times year)))
          (time-difference-in-secs (floor (float-time (time-subtract time-on-week-end-day week1-end-time ))))
          (secs-in-a-week (* 7 (* 24 (* 60 60)))))
-    (1+ (/ time-difference-in-secs secs-in-a-week))))
-  
-(defun time-to-day-week-month-quarter-year (time)
+    (list (1+ (/ time-difference-in-secs secs-in-a-week)) year)))
+
+(defun time-to-day-month-quarter-year (time)
   (let* ((str (format-time-string "%Y%q%m%d" time))
          (year (string-to-number (substring str 0 4)))
          (quarter (string-to-number (substring str 4 5)))
          (month (string-to-number (substring str 5 7)))
-         (day (string-to-number (substring str 7 9)))
-         (week (time-to-week-number-and-year time)))
-    (list day week month quarter year)))
+         (day (string-to-number (substring str 7 9))))       
+    (list day month quarter year)))
 
 ;;;; date to time
   
@@ -244,7 +248,8 @@ list of the form (DAY MONTH YEAR)."
 
 (defun create-org-roam-lies-node (time-period time)
   (let* (directory template)
-    (cl-destructuring-bind (_ week month quarter year) (time-to-day-week-month-quarter-year time)
+    (cl-destructuring-bind (_ month quarter year)
+        (time-to-day-month-quarter-year time)      
       (pcase time-period
         ('day
          (setq directory orl-dailies-dir)            
@@ -253,53 +258,65 @@ list of the form (DAY MONTH YEAR)."
                                    (concat "#+title:%<%Y-%m-%d>\n#+filetags: :"
                                            orl-day-tag ":\n\n" (format-time-string "%A, %F" time) "\n\n"))))
         ('week
-         (setq directory orl-weeklies-dir)
-         (cl-destructuring-bind (st et) (week-start-and-end-times week year)
-           (setq start-time st end-time et))
-         (setq template
-               (make-orl--template (concat orl-weeklies-dir "%<%Y-W%U>.org")
-                                   (concat "#+title: %<%Y week %U>\n#+filetags: :" orl-week-tag ":\n\n"
-                                           (format-time-string "%A, %F"
-                                                               start-time)
-                                           " -- "(format-time-string "%A, %F" end-time) "\n\n"))))
-        ('month
-         (setq directory orl-monthlies-dir)
-         (cl-destructuring-bind (start-time end-time) (month-start-and-end-times month year)
-           (setq template
-                 (make-orl--template (concat orl-monthlies-dir "%<%Y-%m>.org")
-                                     (concat "#+title: %<%Y %B>\n#+filetags: :" orl-month-tag ":\n\n"
-                                             (format-time-string "%A, %F"
-                                                                 start-time)
-                                             " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
-        ('quarter
-         (setq directory orl-quarterlies-dir)
-         (cl-destructuring-bind (start-time end-time) (quarter-start-and-end-times quarter year)
-           (setq template
-                 (make-orl--template (concat orl-quarterlies-dir "%<%Y-%q>.org")
-                                     (concat "#+title: %<%Y quarter %q>\n#+filetags: :" orl-quarter-tag ":\n\n"
-                                             (format-time-string "%A, %F"
-                                                                 start-time)
-                                             " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
-        ('year
-         (setq directory orl-yearlies-dir)
-         (cl-destructuring-bind (start-time end-time) (year-start-and-end-times year)
-           (setq template
-                 (make-orl--template (concat orl-yearlies-dir "%<%Y>.org")
-                                     (concat "#+title: %<%Y>\n#+filetags: :" orl-year-tag ":\n\n"
-                                             (format-time-string "%A, %F"
-                                                                 start-time)
-                                             " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
-        ('ever
-         (setq directory orl-everlies-dir)
-         (cl-destructuring-bind (start-time end-time) (year-start-and-end-times year)
-         (setq template
-               (make-orl--template (concat orl-everlies-dir "ever.org")
-                                   (concat "#+title: ever file\n#+filetags: :" orl-ever-tag ":\n\n"
-                                           (format-time-string "%A, %F"
-                                                               start-time)
-                                           " -- " (format-time-string "%A, %F" end-time) "\n\n")))))))
+         (cl-destructuring-bind (week week-year)
+             (time-to-week-number-and-year time)
+           (cl-destructuring-bind (start-time end-time)
+               (week-start-and-end-times week week-year)             
+             (setq directory orl-weeklies-dir)
+             (setq template
+                   (make-orl--template
+                    (concat orl-weeklies-dir
+                            (concat (number-to-string week-year)
+                                    "-W"
+                                    (format "%02d" week)
+                                    ".org"))
+                    (concat "#+title: " (number-to-string week-year)
+                            " week " (format "%02d" week) "\n#+filetags: :" orl-week-tag ":\n\n"
+                                    (format-time-string "%A, %F"
+                                                        start-time)
+                                    " -- "(format-time-string "%A, %F" end-time) "\n\n"))))))
+         ('month
+          (cl-destructuring-bind (start-time end-time)
+              (month-start-and-end-times month year)
+            (setq directory orl-monthlies-dir)
+            (setq template
+                  (make-orl--template (concat orl-monthlies-dir "%<%Y-%m>.org")
+                                      (concat "#+title: %<%Y %B>\n#+filetags: :" orl-month-tag ":\n\n"
+                                              (format-time-string "%A, %F"
+                                                                  start-time)
+                                              " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
+         ('quarter
+          (cl-destructuring-bind (start-time end-time)
+              (quarter-start-and-end-times quarter year)
+            (setq directory orl-quarterlies-dir)
+            (setq template
+                  (make-orl--template (concat orl-quarterlies-dir "%<%Y-%q>.org")
+                                      (concat "#+title: %<%Y quarter %q>\n#+filetags: :" orl-quarter-tag ":\n\n"
+                                              (format-time-string "%A, %F"
+                                                                  start-time)
+                                              " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
+         ('year
+          (cl-destructuring-bind (start-time end-time)
+              (year-start-and-end-times year)
+            (setq directory orl-yearlies-dir)
+            (setq template
+                  (make-orl--template (concat orl-yearlies-dir "%<%Y>.org")
+                                      (concat "#+title: %<%Y>\n#+filetags: :" orl-year-tag ":\n\n"
+                                              (format-time-string "%A, %F"
+                                                                  start-time)
+                                              " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
+         ('ever
+          (cl-destructuring-bind (start-time end-time)
+              (year-start-and-end-times year)
+            (setq directory orl-everlies-dir)
+            (setq template
+                  (make-orl--template (concat orl-everlies-dir "ever.org")
+                                      (concat "#+title: ever file\n#+filetags: :" orl-ever-tag ":\n\n"
+                                              (format-time-string "%A, %F"
+                                                                  start-time)
+                                              " -- " (format-time-string "%A, %F" end-time) "\n\n")))))))
       (org-roam-lies-node-create :time-period time-period :time time
-                                 :directory directory :template template)))
+                                 :directory directory :template template))))
 
 ;;; node util functions
 
