@@ -89,7 +89,7 @@
 (defvar orl-tag-list (list orl-day-tag orl-week-tag orl-month-tag
                            orl-quarter-tag orl-year-tag orl-ever-tag))
 
-(defun org-roam-node-has-orl-tags-p (node)
+(defun orl-roam-node-has-orl-tags-p (node)
   (let ((node-tag-list (org-roam-node-tags node)))
     (cl-some (lambda (tag) (member tag orl-tag-list)) node-tag-list)))
 
