@@ -172,7 +172,8 @@ difference is."
         (encode-time 59 59 11 day month year)))
 
 (defun week1-start-and-end-times (year)
-  "Returns a time on the start day and a time on the end day of the week containing Jan. 1, YEAR."
+  "Returns a time on the start day and a time on the end day of the
+week containing Jan. 1, YEAR."
   (let* ((jan1-time (car (day-start-and-end-times 1 1 year)))
          (jan1-day-of-week (string-to-number (format-time-string "%w" jan1-time)))
          start-time end-time)
@@ -316,7 +317,7 @@ list of the form (DAY MONTH YEAR)."
                                                                   start-time)
                                               " -- " (format-time-string "%A, %F" end-time) "\n\n")))))))
       (org-roam-lies-node-create :time-period time-period :time time
-                                 :directory directory :template template))))
+                                 :directory directory :template template)))
 
 ;;; node util functions
 
@@ -581,7 +582,7 @@ items of the form (TIME-PERIOD FILE-NAME)."
                                        (intern (substring tag 4))
                                        file))))
          (cl-loop for (file time-period-to-check time-data-to-check) in return-list
-                  when ('time-period-under-time-period-p time-period time-data time-period-to-check time-data-to-check)
+                  when (time-period-under-time-period-p time-period time-data time-period-to-check time-data-to-check)
                   collect file)))
 
 (defun org-roam-lies-agenda (&optional full-filename)
@@ -628,7 +629,8 @@ buffer, or full-filename if provided."
                                 worked-minutes 'h:mm))))
 
 (defun orl-clock-whole-day ()
-  "When called on an entry in an orl-day buffer, adds time clocked from 9:00 until 16:36."
+  "When called on an entry in an orl-day buffer, adds time clocked
+from 9:00 until 16:36."
   (interactive)
   (let* ((day-string (file-name-base (buffer-file-name (buffer-base-buffer))))
         (start-time
