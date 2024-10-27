@@ -26,6 +26,7 @@
 
 ;;; vars and customizations
 (setq org-roam-database-connector 'sqlite-builtin)
+(require 'cl-lib)
 (require 'org-roam)
 (require 'cal-iso)
 (require 'f)
@@ -316,7 +317,7 @@ list of the form (DAY MONTH YEAR)."
                                               (format-time-string "%A, %F"
                                                                   start-time)
                                               " -- " (format-time-string "%A, %F" end-time) "\n\n")))))))
-      (org-roam-lies-node-create :time-period time-period :time time
+    (org-roam-lies-node-create :time-period time-period :time time
                                  :directory directory :template template)))
 
 ;;; node util functions
