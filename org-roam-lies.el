@@ -641,12 +641,11 @@ from 9:00 until 16:36."
     (org-clock-in nil start-time)
     (org-clock-out nil nil end-time)))
 
-(defun orl-refile (copy-p direction)
-  "DIRECTION should be a character and either j for previous, l for
-forward, i for up, k for down, d for today, w for this week, m for
-  this month, y for this year, or e for ever. If called with a prefix
-argument, then copy the entry to location."
-  (interactive "P\ncChoose where to refile.")  
+;;; refile
+
+(defun orl--refile-get-file-name (direction)
+  "Assumes current buffer is an org-roam-lies buffer. DIRECTION is a character. Returns
+  the file name of the org-roam-lies in that direction from current one."
   (let* ((command-suffix
           (pcase direction
             (?j "previous")
@@ -658,15 +657,55 @@ argument, then copy the entry to location."
             (?m "this-month")
             (?y "this-year")
             (?e "ever")))
-         (command-name (concat "org-roam-lies-find-" command-suffix))
-         (file-name
+         (command-name (concat "org-roam-lies-find-" command-suffix))         
+         (target-file
           (save-window-excursion
             (save-excursion
               (funcall (intern command-name))
               (buffer-file-name)))))
-    (let (org-refile-keep)
-      (if copy-p (setq org-refile-keep t))
-      (org-refile nil nil (list nil file-name)))))
+    target-file))
+
+
+(defun orl--make-subtree-and-get-refile-pos (target-file heading-path-list)
+  "Checks target-file to see if HEADING-PATH-LIST exists, creating subtrees as nescessary, and
+  returns the point in the buffer right after the end of HEADING-PATH-LIST (the beginning
+  of the line after the heading of the last item in the list)."
+  (with-current-buffer (find-file-noselect target-file)  ;; Open the target file
+    ;; Create parent headings if they don't exist
+    (let ((cur-level 0))
+      (dolist (heading heading-path-list)
+        (setq cur-level (1+ cur-level))
+        (if-let ((existing-heading (org-find-exact-headline-in-buffer heading nil t)))
+            (progn (goto-char existing-heading)
+                   (forward-line 1))
+        (goto-char (point-max))  ;; Move to end of buffer
+        (org-insert-heading nil nil cur-level)     ;; Insert new heading
+        (insert heading))
+      (org-narrow-to-subtree)))  ;; Narrow to the newly created heading
+    (widen)  ;; Ensure we are at the top level
+    (point)))
+
+(defcustom org-roam-lies-refile-keep-subtree-parents t
+  "Whether refile should keep an entry at the same position in its subtree, creating it's
+  parents if necessary."
+  :group 'org-roam-lies
+  :type 'boolean)
+
+(defun orl-refile (copy-p direction)
+  "DIRECTION should be a character and either j for previous, l for
+forward, i for up, k for down, d for today, w for this week, m for
+  this month, y for this year, or e for ever. If called with a prefix
+argument, then copy the entry to location."
+  (interactive "P\ncChoose where to refile.")  
+  (let* ((target-file (orl--refile-get-file-name direction))         
+         (refile-pos
+          (if org-roam-lies-refile-keep-subtree-parents
+              (orl--make-subtree-and-get-refile-pos target-file (org-get-outline-path))
+            nil))
+         (org-refile-targets `((,target-file :maxlevel . 9)))
+         org-refile-keep)
+    (if copy-p (setq org-refile-keep t))
+    (org-refile nil nil `(nil ,target-file nil ,refile-pos))))
 
 ;;; org-roam-lies-map (keymap)
 (define-prefix-command 'org-roam-lies-map)
