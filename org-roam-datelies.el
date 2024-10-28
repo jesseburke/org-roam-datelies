@@ -684,6 +684,36 @@ argument, then copy the entry to location."
     (if copy-p (setq org-refile-keep t))
     (org-refile nil nil `(nil ,target-file nil ,refile-pos))))
 
+(defun ordlies--buffer-p (buffer)
+  (and (bufferp buffer)
+       (buffer-file-name buffer)
+       (f-descendant-of-p (buffer-file-name buffer)
+                          (expand-file-name org-roam-datelies-dir org-roam-directory))))
+
+(defun ordlies--get-all-buffers ()
+  "Returns a list of all open org-roam-datelies buffers in the current session."
+  (let ((return-list '()))
+    (dolist (buffer (buffer-list))
+      (when (ordlies--buffer-p buffer)
+        (push buffer return-list)))
+    return-list))
+
+;; (length (ordlies--get-all-buffers))
+
+(defun org-roam-datelies--bury-all-buffers ()
+  (interactive)
+  (dolist (buffer (ordlies--get-all-buffers))
+    (bury-buffer buffer)))
+
+;; (org-roam-datelies--bury-all-buffers)
+
+(defun org-roam-datelies--kill-all-buffers ()
+  (interactive)
+  (dolist (buffer (ordlies--get-all-buffers))
+    (kill-buffer buffer)))
+
+;; (org-roam-datelies--kill-all-buffers)
+
 ;;; org-roam-datelies-map (keymap)
 (define-prefix-command 'org-roam-datelies-map)
 (define-prefix-command 'orl-choose-date-map)
