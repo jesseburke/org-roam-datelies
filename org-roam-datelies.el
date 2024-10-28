@@ -44,33 +44,8 @@
   :prefix "org-roam-datelies-"
   :link '(url-link :tag "Github" "https://github.com/jesseburke/org-roam-datelies"))  
 
-(defcustom orl-dailies-dir "daily/"
-  "Path to daily-notes, relative to `org-roam-directory'."
-  :group 'org-roam-datelies
-  :type 'string)
-
-(defcustom orl-weeklies-dir "weekly/"
-  "Path to weekly-notes, relative to `org-roam-directory'."
-  :group 'org-roam-datelies
-  :type 'string)
-
-(defcustom orl-monthlies-dir "monthly/"
-  "Path to monthly-notes, relative to `org-roam-directory'."
-  :group 'org-roam-datelies
-  :type 'string)
-
-(defcustom orl-quarterlies-dir "quarterly/"
-  "Path to quarterly-notes, relative to `org-roam-directory'."
-  :group 'org-roam-datelies
-  :type 'string)
-
-(defcustom orl-yearlies-dir "yearly/"
-  "Path to yearly-notes, relative to `org-roam-directory'."
-  :group 'org-roam-datelies
-  :type 'string)
-
-(defcustom orl-everlies-dir "ever/"
-  "Path to everly-notes, relative to `org-roam-directory'."
+(defcustom org-roam-datelies-dir "datelies/"
+  "Path to directory for datelie notes (relative to `org-roam-directory')."
   :group 'org-roam-datelies
   :type 'string)
 
@@ -246,7 +221,7 @@ list of the form (DAY MONTH YEAR)."
 (defun ordlies--make-orl--template (file-str head-str)
   `("d" "default" entry
     "* %?"
-    :if-new (file+head ,file-str ,head-str)))
+    :if-new (file+head ,(expand-file-name file-str org-roam-directory) ,head-str)))
 
 (defun org-roam-datelies--create-node (time-period time)
   (let* (directory template)
@@ -254,9 +229,9 @@ list of the form (DAY MONTH YEAR)."
         (ordlies--time-to-day-month-quarter-year time)      
       (pcase time-period
         ('day
-         (setq directory orl-dailies-dir)            
+         (setq directory (concat org-roam-datelies-dir "daily/"))
          (setq template
-               (ordlies--make-orl--template (concat orl-dailies-dir "%<%Y-%m-%d>.org")
+               (ordlies--make-orl--template (concat directory "%<%Y-%m-%d>.org")
                                    (concat "#+title:%<%Y-%m-%d>\n#+filetags: :"
                                            orl-day-tag ":\n\n" (format-time-string "%A, %F" time) "\n\n"))))
         ('week
@@ -264,10 +239,10 @@ list of the form (DAY MONTH YEAR)."
              (ordlies--time-to-week-number-and-year time)
            (cl-destructuring-bind (start-time end-time)
                (ordlies--week-start-and-end-times week week-year)             
-             (setq directory orl-weeklies-dir)
+             (setq directory (concat org-roam-datelies-dir "weekly/"))
              (setq template
                    (ordlies--make-orl--template
-                    (concat orl-weeklies-dir
+                    (concat directory
                             (concat (number-to-string week-year)
                                     "-W"
                                     (format "%02d" week)
@@ -280,9 +255,9 @@ list of the form (DAY MONTH YEAR)."
          ('month
           (cl-destructuring-bind (start-time end-time)
               (ordlies--month-start-and-end-times month year)
-            (setq directory orl-monthlies-dir)
+            (setq directory (concat org-roam-datelies-dir "monthly/"))
             (setq template
-                  (ordlies--make-orl--template (concat orl-monthlies-dir "%<%Y-%m>.org")
+                  (ordlies--make-orl--template (concat directory "%<%Y-%m>.org")
                                       (concat "#+title: %<%Y %B>\n#+filetags: :" orl-month-tag ":\n\n"
                                               (format-time-string "%A, %F"
                                                                   start-time)
@@ -290,9 +265,9 @@ list of the form (DAY MONTH YEAR)."
          ('quarter
           (cl-destructuring-bind (start-time end-time)
               (ordlies--quarter-start-and-end-times quarter year)
-            (setq directory orl-quarterlies-dir)
+            (setq directory (concat org-roam-datelies-dir "quarterly/"))
             (setq template
-                  (ordlies--make-orl--template (concat orl-quarterlies-dir "%<%Y-%q>.org")
+                  (ordlies--make-orl--template (concat directory "%<%Y-%q>.org")
                                       (concat "#+title: %<%Y quarter %q>\n#+filetags: :" orl-quarter-tag ":\n\n"
                                               (format-time-string "%A, %F"
                                                                   start-time)
@@ -300,9 +275,9 @@ list of the form (DAY MONTH YEAR)."
          ('year
           (cl-destructuring-bind (start-time end-time)
               (ordlies--year-start-and-end-times year)
-            (setq directory orl-yearlies-dir)
+            (setq directory (concat org-roam-datelies-dir "yearly/"))
             (setq template
-                  (ordlies--make-orl--template (concat orl-yearlies-dir "%<%Y>.org")
+                  (ordlies--make-orl--template (concat directory "%<%Y>.org")
                                       (concat "#+title: %<%Y>\n#+filetags: :" orl-year-tag ":\n\n"
                                               (format-time-string "%A, %F"
                                                                   start-time)
@@ -310,9 +285,9 @@ list of the form (DAY MONTH YEAR)."
          ('ever
           (cl-destructuring-bind (start-time end-time)
               (ordlies--year-start-and-end-times year)
-            (setq directory orl-everlies-dir)
+            (setq directory (concat org-roam-datelies-dir "ever/"))
             (setq template
-                  (ordlies--make-orl--template (concat orl-everlies-dir "ever.org")
+                  (ordlies--make-orl--template (concat directory "ever.org")
                                       (concat "#+title: ever file\n#+filetags: :" orl-ever-tag ":\n\n"
                                               (format-time-string "%A, %F"
                                                                   start-time)
@@ -340,12 +315,12 @@ If node isn't specified, use node at point."
 Org-roam-lies note, nil otherwise.
 If FILE is not specified, use the current buffer's file-path."
   (interactive)
-  (let ((dd (expand-file-name orl-dailies-dir org-roam-directory))
-        (wd (expand-file-name orl-weeklies-dir org-roam-directory))
-        (md (expand-file-name orl-monthlies-dir org-roam-directory))
-        (qd (expand-file-name orl-quarterlies-dir org-roam-directory))
-        (yd (expand-file-name orl-yearlies-dir org-roam-directory))
-        (ed (expand-file-name orl-everlies-dir org-roam-directory)))
+  (let ((dd (expand-file-name "daily" (expand-file-name org-roam-datelies-dir org-roam-directory)))
+        (wd (expand-file-name "weekly" (expand-file-name org-roam-datelies-dir org-roam-directory)))
+        (md (expand-file-name "monthly" (expand-file-name org-roam-datelies-dir org-roam-directory)))
+        (qd (expand-file-name "quarterly" (expand-file-name org-roam-datelies-dir org-roam-directory)))
+        (yd (expand-file-name "yearly" (expand-file-name org-roam-datelies-dir org-roam-directory)))
+        (ed (expand-file-name "ever" (expand-file-name org-roam-datelies-dir org-roam-directory))))
     (when-let ((path (expand-file-name
                       (or file
                           (buffer-file-name (buffer-base-buffer))))))
