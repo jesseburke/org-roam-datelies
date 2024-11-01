@@ -49,26 +49,6 @@
   :group 'org-roam-datelies
   :type 'string)
 
-(defcustom orl-day-tag "orl-day" "tag for orl" :group 'org-roam-datelies
-  :type 'string)
-(defcustom orl-week-tag "orl-week" "tag for orl" :group 'org-roam-datelies
-  :type 'string)
-(defcustom orl-month-tag "orl-month" "tag for orl" :group 'org-roam-datelies
-  :type 'string)
-(defcustom orl-quarter-tag "orl-quarter" "tag for orl" :group 'org-roam-datelies
-  :type 'string)
-(defcustom orl-year-tag "orl-year" "tag for orl" :group 'org-roam-datelies
-  :type 'string)
-(defcustom orl-ever-tag "orl-ever" "tag for orl" :group 'org-roam-datelies
-  :type 'string)
-
-(defvar orl-tag-list (list orl-day-tag orl-week-tag orl-month-tag
-                           orl-quarter-tag orl-year-tag orl-ever-tag))
-
-(defun orl-roam-node-has-orl-tags-p (node)
-  (let ((node-tag-list (org-roam-node-tags node)))
-    (cl-some (lambda (tag) (member tag orl-tag-list)) node-tag-list)))
-
 ;;; date and time functions
 
 ;;;; time plus ...
@@ -232,8 +212,7 @@ list of the form (DAY MONTH YEAR)."
          (setq directory (concat org-roam-datelies-dir "daily/"))
          (setq template
                (ordlies--make-orl--template (concat directory "%<%Y-%m-%d>.org")
-                                            (concat "#+title:%<%Y-%m-%d>\n#+filetags: :"
-                                                    orl-day-tag ":\n\n" (format-time-string "%A, %F" time) "\n\n"))))
+                                            (concat "#+title:%<%Y-%m-%d>" "\n\n" (format-time-string "%A, %F" time) "\n\n"))))
         ('week
          (cl-destructuring-bind (week week-year)
              (ordlies--time-to-week-number-and-year time)
@@ -248,7 +227,7 @@ list of the form (DAY MONTH YEAR)."
                                     (format "%02d" week)
                                     ".org"))
                     (concat "#+title: " (number-to-string week-year)
-                            " week " (format "%02d" week) "\n#+filetags: :" orl-week-tag ":\n\n"
+                            " week " (format "%02d" week) "\n\n"
                             (format-time-string "%A, %F"
                                                 start-time)
                             " -- "(format-time-string "%A, %F" end-time) "\n\n"))))))
@@ -258,7 +237,7 @@ list of the form (DAY MONTH YEAR)."
            (setq directory (concat org-roam-datelies-dir "monthly/"))
            (setq template
                  (ordlies--make-orl--template (concat directory "%<%Y-%m>.org")
-                                              (concat "#+title: %<%Y %B>\n#+filetags: :" orl-month-tag ":\n\n"
+                                              (concat "#+title: %<%Y %B>\n\n"
                                                       (format-time-string "%A, %F"
                                                                           start-time)
                                                       " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
@@ -268,7 +247,7 @@ list of the form (DAY MONTH YEAR)."
            (setq directory (concat org-roam-datelies-dir "quarterly/"))
            (setq template
                  (ordlies--make-orl--template (concat directory "%<%Y-%q>.org")
-                                              (concat "#+title: %<%Y quarter %q>\n#+filetags: :" orl-quarter-tag ":\n\n"
+                                              (concat "#+title: %<%Y quarter %q>\n\n"
                                                       (format-time-string "%A, %F"
                                                                           start-time)
                                                       " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
@@ -278,7 +257,7 @@ list of the form (DAY MONTH YEAR)."
            (setq directory (concat org-roam-datelies-dir "yearly/"))
            (setq template
                  (ordlies--make-orl--template (concat directory "%<%Y>.org")
-                                              (concat "#+title: %<%Y>\n#+filetags: :" orl-year-tag ":\n\n"
+                                              (concat "#+title: %<%Y>\n\n"
                                                       (format-time-string "%A, %F"
                                                                           start-time)
                                                       " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
@@ -288,7 +267,7 @@ list of the form (DAY MONTH YEAR)."
            (setq directory (concat org-roam-datelies-dir "ever/"))
            (setq template
                  (ordlies--make-orl--template (concat directory "ever.org")
-                                              (concat "#+title: ever file\n#+filetags: :" orl-ever-tag ":\n\n"
+                                              (concat "#+title: ever file\n\n"
                                                       (format-time-string "%A, %F"
                                                                           start-time)
                                                       " -- " (format-time-string "%A, %F" end-time) "\n\n")))))))
