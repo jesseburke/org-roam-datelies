@@ -312,8 +312,8 @@ If node isn't specified, use node at point."
 
 (defun ordlies--type-from-file-name (&optional file)
   "Return day, week, month, quarter, or ever if FILE is an
-Org-roam-lies note, nil otherwise.
-If FILE is not specified, use the current buffer's file-path."
+org-roam-datelies note, nil otherwise. If FILE is not specified, use the
+current buffer's file-path."
   (interactive)
   (let ((dd (expand-file-name "daily" (expand-file-name org-roam-datelies-dir org-roam-directory)))
         (wd (expand-file-name "weekly" (expand-file-name org-roam-datelies-dir org-roam-directory)))
@@ -370,13 +370,102 @@ If FILE is not specified, use the current buffer's file-path."
   "returns a single time in the time period of the current file"
   (car (ordlies--node-start-and-end-times node)))
 
+;;; props for ordlies nodes
+
+(defvar ordlies--prop-and-valuefn-list
+  '((day "ord-day" (lambda (time) (format-time-string "%Y-%m-%d" time)))
+    (week "ord-week" (lambda (time)
+                       (cl-destructuring-bind (week week-year)
+                           (ordlies--time-to-week-number-and-year time)
+                         (concat (number-to-string week-year) "-" (number-to-string week)))))
+    (month "ord-month" (lambda (time) (format-time-string "%Y-%m" time)))
+    (quarter "ord-quarter" (lambda (time) (format-time-string "%Y-%q" time)))
+    (year "ord-year" (lambda (time) (format-time-string "%Y" time)))
+    (ever "ord-ever" (lambda (_time) t))))
+
+;; (cadr (assoc 'week ordlies--prop-and-valuefn-list))
+;; (funcall (caddr (assoc 'week ordlies--prop-and-valuefn-list)) (current-time))
+;; (setq testsy 'week)
+;; (assoc testsy ordlies--prop-and-valuefn-list)
+
+(defun ordlies--compute-props (time time-period)
+  "Given time and time-period, returns (PROP-NAME . PROP-VALUE)."
+  (if-let ((assoc-match (cdr (assoc time-period ordlies--prop-and-valuefn-list))))
+           (cons (car assoc-match)
+                 (funcall (cadr assoc-match) time))))
+
+;; (ordlies--compute-props (current-time) 'day)
+;; (ordlies--compute-props (current-time) 'week)
+;; (ordlies--compute-props (current-time) 'month)
+;; (ordlies--compute-props (current-time) 'quarter)
+;; (ordlies--compute-props (current-time) 'year)
+;; (ordlies--compute-props (current-time) 'ever)
+
+(defvar ordlies-prop-names (seq-map #'cadr ordlies--prop-and-valuefn-list))
+
+(defun ordlies--get-node-prop (node)
+  "Returns the ord property (name and value) of NODE, if an
+org-roam-datelies node."
+  (unless node (setq node (org-roam-node-at-point)))
+  (let ((node-props (org-roam-node-properties node)))
+    (seq-some (lambda (prop-name)
+                (assoc-string prop-name node-props t)) ;; t means convert to upcase
+              ordlies-prop-names)))
+
+;; (setq test-node #s(org-roam-node "/Users/math/Dropbox/org/org-roam/datelies/daily/2024-10-31.org"
+;;                  "2024-10-31" nil (26404 16515 295082 364000) (26404 16515 286136 925000)
+;;                  "0F9284D7-B0B6-473E-A589-CB5DF909D09A" 0 1 nil nil nil nil "2024-10-31"
+;;                  (("CATEGORY" . "2024-10-31")
+;;                   ("DIR" . "~/Dropbox/org/attachments/2024-10-31")
+;;                   ("ORD-DAY" . "2024-10-31")
+;;                   ("ID" . "0F9284D7-B0B6-473E-A589-CB5DF909D09A") ("BLOCKED" . "")
+;;                   ("ALLTAGS" . #(":orl-day:" 1 8 (inherited t)))
+;;                   ("FILE"
+;;                    . "/Users/math/Dropbox/org/org-roam/datelies/daily/2024-10-31.org")
+;;                   ("PRIORITY" . "B"))
+;;                  nil ("orl-day") nil nil))
+
+;; (ordlies--get-node-prop test-node)
+
+
+(defun ordlies--node-time-period (&optional node)
+  "Returns the time period of NODE, or nil if not anb org-roam-datelies node; if NODE is nil, looks for node at
+point."
+  (unless node (setq node (org-roam-node-at-point)))
+  (if-let ((matched-prop (ordlies--get-node-prop node)))            
+      (intern (downcase (substring (car matched-prop) 4)))))
+
+;; (ordlies--node-time-period test-node)
+
+(defun ordlies--node-time-data-string (&optional node)
+  "Returns the time data string for NODE, or nil if not anb org-roam-datelies node; if NODE is nil, looks for node at
+point."
+  (unless node (setq node (org-roam-node-at-point)))
+  (let ((node-props (org-roam-node-properties node)))
+    (if-let ((matched-prop-name (car (seq-some (lambda (prop)
+                                            (member (downcase (car prop))
+                                                    ordlies-prop-names))
+                                          node-props))))
+        (cdr (assoc-string (upcase matched-prop-name) node-props)))))
+
+
 ;;; capture
 (add-to-list 'org-roam-capture--template-keywords
              :override-default-time)
 
 ;;;###autoload
 (defun org-roam-datelies--capture (time node &optional goto)
-  "create a weekly, monthly, etc for time, creating it if neccessary"
+  "Create a weekly, monthly, etc for time, creating it if neccessary."
+  (defun ordlies--capture-cb ()
+    (save-excursion
+      (goto-char (point-min))
+      (unless (ordlies--node-time-period)
+        (apply 'org-set-property
+               (ordlies--compute-props time
+                                       (org-roam-datelies-node-time-period node)))
+        (save-buffer)))
+    (remove-hook 'org-roam-capture-new-node-hook #'ordlies--capture-cb))
+  (add-hook 'org-roam-capture-new-node-hook #'ordlies--capture-cb)
   (org-roam-capture- :goto (when goto '(4))
                      :node node
                      :templates (list (org-roam-datelies-node-template node))
@@ -689,6 +778,8 @@ argument, then copy the entry to location."
        (buffer-file-name buffer)
        (f-descendant-of-p (buffer-file-name buffer)
                           (expand-file-name org-roam-datelies-dir org-roam-directory))))
+
+;;; doing things with (all) ordlies buffers
 
 (defun ordlies--get-all-buffers ()
   "Returns a list of all open org-roam-datelies buffers in the current session."
