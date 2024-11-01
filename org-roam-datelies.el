@@ -360,7 +360,7 @@ current buffer's file-path."
     (month "ord-month" (lambda (time) (format-time-string "%Y-%m" time)))
     (quarter "ord-quarter" (lambda (time) (format-time-string "%Y-%q" time)))
     (year "ord-year" (lambda (time) (format-time-string "%Y" time)))
-    (ever "ord-ever" (lambda (_time) t))))
+    (ever "ord-ever" (lambda (_time) "t"))))
 
 ;; (cadr (assoc 'week ordlies--prop-and-valuefn-list))
 ;; (funcall (caddr (assoc 'week ordlies--prop-and-valuefn-list)) (current-time))
@@ -368,9 +368,9 @@ current buffer's file-path."
 ;; (assoc testsy ordlies--prop-and-valuefn-list)
 
 (defun ordlies--compute-props (time time-period)
-  "Given time and time-period, returns (PROP-NAME . PROP-VALUE)."
+  "Given time and time-period, returns list of the form (PROP-NAME PROP-VALUE)."
   (if-let ((assoc-match (cdr (assoc time-period ordlies--prop-and-valuefn-list))))
-           (cons (car assoc-match)
+           (list (car assoc-match)
                  (funcall (cadr assoc-match) time))))
 
 ;; (ordlies--compute-props (current-time) 'day)
@@ -536,7 +536,7 @@ point."
 (defun org-roam-datelies-find-previous ()
   "Goto the previous datelies note in the current time-period."
   (interactive)
-  (let ((time-period (ordlies--get-node-time-period)) time)
+  (let ((time-period (ordlies--node-time-period)) time)
     (pcase time-period
       ('day (setq time (ordlies--time-plus-days (ordlies--time-in-node-time-period) -1)))
       ('week (setq time (ordlies--time-plus-weeks (ordlies--time-in-node-time-period) -1)))
@@ -548,7 +548,7 @@ point."
 (defun org-roam-datelies-find-forward ()
   "Find the previous datelies note in the current time-period"
   (interactive)
-  (let ((time-period (ordlies--get-node-time-period)) time)
+  (let ((time-period (ordlies--node-time-period)) time)
     (pcase time-period
       ('day (setq time (ordlies--time-plus-days (ordlies--time-in-node-time-period) 1)))
       ('week (setq time (ordlies--time-plus-weeks (ordlies--time-in-node-time-period) 1)))
@@ -562,7 +562,7 @@ point."
 containing the first day of the file's week; analogous if in
 monthly or quarterly file."
   (interactive)
-  (let* ((time-period (ordlies--get-node-time-period))
+  (let* ((time-period (ordlies--node-time-period))
          (time (ordlies--time-in-node-time-period)) node)
     (pcase time-period
       ('day (setq node (org-roam-datelies--create-node 'week time)))
@@ -577,7 +577,7 @@ monthly or quarterly file."
    the week; if in monthly file, go to first week of the month,
    etc."
   (interactive)
-  (let ((time-period (ordlies--get-node-time-period))
+  (let ((time-period (ordlies--node-time-period))
         (start-time (car (ordlies--node-start-and-end-times)))
         new-time-period)
     (pcase time-period
@@ -592,7 +592,7 @@ monthly or quarterly file."
    the week; if in monthly file, go to last week of the month,
    etc."
   (interactive)
-  (let ((time-period (ordlies--get-node-time-period))
+  (let ((time-period (ordlies--node-time-period))
         (end-time (cadr (ordlies--node-start-and-end-times)))
         new-time-period)
     (pcase time-period
@@ -641,9 +641,9 @@ items of the form (TIME-PERIOD FILE-NAME)."
     (save-window-excursion
       (find-file full-filename)
       (setq org-agenda-files (ordlies--files-under
-                              (ordlies--get-node-time-period)
+                              (ordlies--node-time-period)
                               (ordlies--time-data-from-file-name
-                               (ordlies--get-node-time-period) full-filename))))
+                               (ordlies--node-time-period) full-filename))))
     (org-agenda)))
 
 (defun org-roam-datelies-time-worked (&optional params full-filename)
@@ -656,9 +656,9 @@ buffer, or full-filename if provided."
           (save-window-excursion
             (find-file full-filename)
             (ordlies--files-under
-             (ordlies--get-node-time-period)
+             (ordlies--node-time-period)
              (ordlies--time-data-from-file-name
-              (ordlies--get-node-time-period) full-filename))))
+              (ordlies--node-time-period) full-filename))))
          (tables
           (if (consp files)
               (mapcar (lambda (file)
