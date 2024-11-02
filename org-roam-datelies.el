@@ -261,16 +261,11 @@ list of the form (DAY MONTH YEAR)."
                                                       (format-time-string "%A, %F"
                                                                           start-time)
                                                       " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
-        ('ever
-         (cl-destructuring-bind (start-time end-time)
-             (ordlies--year-start-and-end-times year)
+        ('ever        
            (setq directory (concat org-roam-datelies-dir "ever/"))
            (setq template
                  (ordlies--make-orl--template (concat directory "ever.org")
-                                              (concat "#+title: ever file\n\n"
-                                                      (format-time-string "%A, %F"
-                                                                          start-time)
-                                                      " -- " (format-time-string "%A, %F" end-time) "\n\n")))))))
+                                              (concat "#+title: ever file\n\n"))))))
     (org-roam-datelies-node-create :time-period time-period :time time
                                    :directory directory :template template)))
 
