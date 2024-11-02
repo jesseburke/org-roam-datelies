@@ -364,6 +364,20 @@ list of the form (DAY MONTH YEAR)."
        (list (string-to-number (substring time-data-string 0 4)))))))
 
 ;; (ordlies--node-time-data (org-roam-node-properties test-node))
+
+(defun org-roam-datelies--nodes ()
+  "Returns a list corresponding to all datelies nodes. Each element of the list has the
+  form (file properties), where properties is a plist."
+  (org-roam-db-query [:select [nodes:file properties]
+                              :from nodes
+                              :where (like
+                                      properties '"%ORD-%")]))
+
+;; (org-roam-datelies--nodes)
+;; (ordlies--node-time-data-string (cadar (org-roam-datelies--nodes)))
+;; (ordlies--node-time-period (cadar (org-roam-datelies--nodes)))
+
+
   (unless node (setq node (org-roam-node-at-point)))
   (let ((node-props (org-roam-node-properties node)))
     (if-let ((matched-prop-name (car (seq-some (lambda (prop)
