@@ -165,12 +165,13 @@ occurs in is Week 1."
 (defun ordlies--time-period-start-and-end-times (time-period time-data)
   "Time-data is a list that depends on time-period, e.g., if time-period
 is \='day, then time-data is a list of the form (DAY MONTH YEAR)."
-  (pcase time-period
-    ('day (apply #'ordlies--day-start-and-end-times time-data))
-    ('week (apply #'ordlies--week-start-and-end-times time-data))
-    ('month (apply #'ordlies--month-start-and-end-times time-data))
-    ('quarter (apply #'ordlies--quarter-start-and-end-times time-data))
-    ('year (apply #'ordlies--year-start-and-end-times time-data))))
+  (apply (intern (concat "ordlies--" (symbol-name time-period) "-start-and-end-times")) time-data))
+
+;; (ordlies--time-period-start-and-end-times 'month '(10 2022))
+;; ((25399 47936) (25440 39300))
+
+;; (ordlies--time-period-start-and-end-times 'day '(31 10 2022))
+;; ((25439 18497) (25439 61695))
 
 (defun ordlies--time-in-time-period-p (time-to-check time-period time-data)
   (cl-destructuring-bind (start-time end-time)
