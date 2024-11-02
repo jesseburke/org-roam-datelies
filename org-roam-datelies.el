@@ -291,8 +291,8 @@ list of the form (DAY MONTH YEAR)."
 (defun ordlies--compute-props (time time-period)
   "Given time and time-period, returns list of the form (PROP-NAME PROP-VALUE)."
   (if-let ((assoc-match (cdr (assoc time-period ordlies--prop-and-valuefn-list))))
-           (list (car assoc-match)
-                 (funcall (cadr assoc-match) time))))
+      (list (car assoc-match)
+            (funcall (cadr assoc-match) time))))
 
 ;; (ordlies--compute-props (current-time) 'day)
 ;; (ordlies--compute-props (current-time) 'week)
@@ -365,7 +365,7 @@ list of the form (DAY MONTH YEAR)."
 
 ;; (ordlies--node-time-data (org-roam-node-properties test-node))
 
-(defun org-roam-datelies--nodes ()
+(defun org-roam-datelies--all-nodes ()
   "Returns a list corresponding to all datelies nodes. Each element of the list has the
   form (file properties), where properties is a plist."
   (org-roam-db-query [:select [nodes:file properties]
@@ -373,9 +373,9 @@ list of the form (DAY MONTH YEAR)."
                               :where (like
                                       properties '"%ORD-%")]))
 
-;; (org-roam-datelies--nodes)
-;; (ordlies--node-time-data-string (cadar (org-roam-datelies--nodes)))
-;; (ordlies--node-time-period (cadar (org-roam-datelies--nodes)))
+;; (org-roam-datelies--all-nodes)
+;; (ordlies--node-time-data-string (cadar (org-roam-datelies--all-nodes)))
+;; (ordlies--node-time-period (cadar (org-roam-datelies--all-nodes)))
 
 (defun ordlies--node-start-and-end-times (&optional node-props)
   "Returns a list of the form (start-time end-time)."
@@ -404,7 +404,7 @@ list of the form (DAY MONTH YEAR)."
         (time-data (ordlies--node-time-data node-props))
         return-list)
     (setq return-list
-          (cl-loop for (file props-to-check) in (org-roam-datelies--nodes)
+          (cl-loop for (file props-to-check) in (org-roam-datelies--all-nodes)
                    collect (list file (ordlies--node-time-period props-to-check)
                                  (ordlies--node-time-data props-to-check))))
     (cl-loop for (file time-period-to-check time-data-to-check) in return-list
