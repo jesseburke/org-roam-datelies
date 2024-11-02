@@ -303,14 +303,10 @@ list of the form (DAY MONTH YEAR)."
 
 (defvar ordlies-prop-names (seq-map #'cadr ordlies--prop-and-valuefn-list))
 
-(defun ordlies--get-node-prop (node)
-  "Returns the ord property (name and value) of NODE, if an
-org-roam-datelies node."
-  (unless node (setq node (org-roam-node-at-point)))
-  (let ((node-props (org-roam-node-properties node)))
-    (seq-some (lambda (prop-name)
-                (assoc-string prop-name node-props t)) ;; t means convert to upcase
-              ordlies-prop-names)))
+(defun ordlies--get-ord-prop (node-props)
+  (seq-some (lambda (prop-name)
+              (assoc-string prop-name node-props t)) ;; t means convert to upcase
+            ordlies-prop-names))
 
 ;; (setq test-node #s(org-roam-node "/Users/math/Dropbox/org/org-roam/datelies/daily/2024-10-31.org"
 ;;                  "2024-10-31" nil (26404 16515 295082 364000) (26404 16515 286136 925000)
@@ -325,21 +321,49 @@ org-roam-datelies node."
 ;;                   ("PRIORITY" . "B"))
 ;;                  nil ("orl-day") nil nil))
 
-;; (ordlies--get-node-prop test-node)
+;; (ordlies--get-ord-prop (org-roam-node-properties test-node))
 
 
-(defun ordlies--node-time-period (&optional node)
-  "Returns the time period of NODE, or nil if not anb org-roam-datelies node; if NODE is nil, looks for node at
-point."
-  (unless node (setq node (org-roam-node-at-point)))
-  (if-let ((matched-prop (ordlies--get-node-prop node)))            
+(defun ordlies--node-time-period (&optional node-props)
+  (unless node-props (setq node-props (org-roam-node-properties (org-roam-node-at-point))))
+  (if-let ((matched-prop (ordlies--get-ord-prop node-props)))
       (intern (downcase (substring (car matched-prop) 4)))))
 
 ;; (ordlies--node-time-period test-node)
 
-(defun ordlies--node-time-data-string (&optional node)
-  "Returns the time data string for NODE, or nil if not anb org-roam-datelies node; if NODE is nil, looks for node at
-point."
+(defun ordlies--node-time-data-string (&optional node-props)
+  (unless node-props (setq node-props (org-roam-node-properties (org-roam-node-at-point))))
+  (if-let ((matched-prop (ordlies--get-ord-prop node-props)))
+      (cdr matched-prop)))
+
+;; (ordlies--node-time-data-string (org-roam-node-properties test-node))
+
+(defun ordlies--node-time-data (&optional node-props)
+  (unless node-props (setq node-props (org-roam-node-properties (org-roam-node-at-point))))
+  (let ((time-period (ordlies--node-time-period node-props))
+        (time-data-string (ordlies--node-time-data-string node-props)))
+    (pcase time-period
+      ('day
+       (let ((year (string-to-number (substring time-data-string 0 4)))
+             (month (string-to-number (substring time-data-string 5 7)))
+             (day (string-to-number (substring time-data-string 8 10))))
+         (list day month year)))
+      ('week
+       (let ((year (string-to-number (substring time-data-string 0 4)))
+             (week-no (string-to-number (substring time-data-string 5 7))))
+         (list week-no year)))
+      ('month
+       (let ((year (string-to-number (substring time-data-string 0 4)))
+             (month (string-to-number (substring time-data-string 5 7))))
+         (list month year)))
+      ('quarter
+       (let ((year (string-to-number (substring time-data-string 0 4)))
+             (quarter (string-to-number (substring time-data-string 5 6))))
+         (list quarter year)))
+      ('year
+       (list (string-to-number (substring time-data-string 0 4)))))))
+
+;; (ordlies--node-time-data (org-roam-node-properties test-node))
   (unless node (setq node (org-roam-node-at-point)))
   (let ((node-props (org-roam-node-properties node)))
     (if-let ((matched-prop-name (car (seq-some (lambda (prop)
