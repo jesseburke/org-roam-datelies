@@ -377,7 +377,26 @@ list of the form (DAY MONTH YEAR)."
 ;; (ordlies--node-time-data-string (cadar (org-roam-datelies--nodes)))
 ;; (ordlies--node-time-period (cadar (org-roam-datelies--nodes)))
 
+(defun ordlies--node-start-and-end-times (&optional node-props)
+  "Returns a list of the form (start-time end-time)."
+  (unless node-props (setq node-props (org-roam-node-properties
+                                       (org-roam-node-at-point))))  
+  (let ((timeperiod (ordlies--node-time-period node-props))
+        (timedata (ordlies--node-time-data node-props)))
+    (ordlies--time-period-start-and-end-times timeperiod timedata)))
 
+;; (ordlies--node-start-and-end-times (org-roam-node-properties test-node))
+
+(defun ordlies--time-in-node-time-period (&optional node-props)
+  "returns a single time in the time period of the current file"
+   (unless node-props (setq node-props (org-roam-node-properties
+                                       (org-roam-node-at-point))))
+  (car (ordlies--node-start-and-end-times node-props)))
+
+;; (ordlies--time-in-node-time-period (org-roam-node-properties test-node))
+
+
+;; TODO: make this more efficient by querying db directly
 (defun ordlies--files-under (&optional node-props)
   (unless node-props (setq node-props (org-roam-node-properties
                                        (org-roam-node-at-point))))
@@ -399,24 +418,6 @@ list of the form (DAY MONTH YEAR)."
 ;;  ("PRIORITY" . "B")))
 
 ;; (ordlies--files-under test-props)
-
-(defun ordlies--node-start-and-end-times (&optional node-props)
-  "Returns a list of the form (start-time end-time)."
-  (unless node-props (setq node-props (org-roam-node-properties
-                                       (org-roam-node-at-point))))  
-  (let ((timeperiod (ordlies--node-time-period node-props))
-        (timedata (ordlies--node-time-data node-props)))
-    (ordlies--time-period-start-and-end-times timeperiod timedata)))
-
-;; (ordlies--node-start-and-end-times (org-roam-node-properties test-node))
-
-(defun ordlies--time-in-node-time-period (&optional node-props)
-  "returns a single time in the time period of the current file"
-   (unless node-props (setq node-props (org-roam-node-properties
-                                       (org-roam-node-at-point))))
-  (car (ordlies--node-start-and-end-times node-props)))
-
-;; (ordlies--time-in-node-time-period (org-roam-node-properties test-node))
 
 ;;; capture
 (add-to-list 'org-roam-capture--template-keywords
