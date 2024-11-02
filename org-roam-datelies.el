@@ -378,6 +378,27 @@ list of the form (DAY MONTH YEAR)."
 ;; (ordlies--node-time-period (cadar (org-roam-datelies--nodes)))
 
 
+(defun ordlies--files-under (&optional node-props)
+  (unless node-props (setq node-props (org-roam-node-properties
+                                       (org-roam-node-at-point))))
+  (let ((time-period (ordlies--node-time-period node-props))
+        (time-data (ordlies--node-time-data node-props))
+        return-list)
+    (setq return-list
+          (cl-loop for (file props-to-check) in (org-roam-datelies--nodes)
+                   collect (list file (ordlies--node-time-period props-to-check)
+                                 (ordlies--node-time-data props-to-check))))
+    (cl-loop for (file time-period-to-check time-data-to-check) in return-list
+             when (ordlies--time-period-under-time-period-p time-period time-data time-period-to-check time-data-to-check)
+             collect file)))
+
+;; (setq test-props '(("CATEGORY" . "2024-10") ("ORD-MONTH" . "2024-10")
+;;  ("DIR" . "~/Dropbox/org/attachments/2024-10")
+;;  ("ID" . "AB75C940-83A9-4FCD-AA6B-3F413D858D18") ("BLOCKED" . "")
+;;  ("FILE" . "/Users/math/Dropbox/org/org-roam/datelies/monthly/2024-10.org")
+;;  ("PRIORITY" . "B")))
+
+;; (ordlies--files-under test-props)
 
 (defun ordlies--node-start-and-end-times (&optional node-props)
   "Returns a list of the form (start-time end-time)."
@@ -573,68 +594,28 @@ monthly or quarterly file."
 
 ;;; agenda and related functions
 
-(defun ordlies--files-under (time-period time-data) "The form of TIME-DATA
-depends on TIME-PERIOD, e.g., if time-period is \='week, then
-time-data should have the form (WEEK YEAR). Will return list of
-items of the form (TIME-PERIOD FILE-NAME)."
-       (let (tag-vec return-list)
-         (pcase time-period
-           ('day (setq tag-vec ["orl-day"]))
-           ('week (setq tag-vec ["orl-day" "orl-week"]))
-           ('month (setq tag-vec ["orl-day" "orl-week" "orl-month"]))
-           ('quarter (setq tag-vec ["orl-day" "orl-week" "orl-month" "orl-quarter"]))
-           ('year (setq tag-vec ["orl-day" "orl-week" "orl-month" "orl-quarter" "orl-year"]))
-           ('ever (setq tag-vec ["orl-day" "orl-week" "orl-month" "orl-quarter" "orl-year" "orl-ever"])))
-         (setq return-list
-               (cl-loop for (file tag) in (org-roam-db-query [:select [nodes:file tag]
-                                                                      :from tags
-                                                                      :inner :join nodes
-                                                                      :on (= tags:node-id nodes:id)
-                                                                      :where (in tag $v1)] tag-vec)
-                        collect (list file (intern (substring tag 4))
-                                      (ordlies--time-data-from-file-name
-                                       (intern (substring tag 4))
-                                       file))))
-         (cl-loop for (file time-period-to-check time-data-to-check) in return-list
-                  when (ordlies--time-period-under-time-period-p time-period time-data time-period-to-check time-data-to-check)
-                  collect file)))
-
-(defun org-roam-datelies-agenda (&optional full-filename)
+(defun org-roam-datelies-agenda ()
   "Shows agenda for all of the files under the current
   org-roam-datelies file (e.g., if in a monthly file, this will call
   org-agenda will all of the weekly and daily files belonging to
   that month"
   (interactive)
-  (unless full-filename (setq full-filename (buffer-file-name)))
   (let (org-agenda-files)
-    (save-window-excursion
-      (find-file full-filename)
-      (setq org-agenda-files (ordlies--files-under
-                              (ordlies--node-time-period)
-                              (ordlies--time-data-from-file-name
-                               (ordlies--node-time-period) full-filename))))
+    (setq org-agenda-files (ordlies--files-under))
     (org-agenda)))
 
-(defun org-roam-datelies-time-worked (&optional params full-filename)
+(defun org-roam-datelies-time-worked ()
   "Find the total time worked in all of the files under the current
 buffer, or full-filename if provided."
-  (interactive)
-  (unless full-filename (setq full-filename (buffer-file-name)))
-  (setq params (org-combine-plists org-clocktable-defaults params))
-  (let* ((files
-          (save-window-excursion
-            (find-file full-filename)
-            (ordlies--files-under
-             (ordlies--node-time-period)
-             (ordlies--time-data-from-file-name
-              (ordlies--node-time-period) full-filename))))
+  (interactive)    
+  (let* ((files (ordlies--files-under))
          (tables
           (if (consp files)
               (mapcar (lambda (file)
                         (with-current-buffer (find-buffer-visiting file)
                           (save-excursion
                             (save-restriction
-                              (org-clock-get-table-data file params)))))
+                              (org-clock-get-table-data file org-clocktable-defaults)))))
                       files)))
          (worked-minutes 0))
     (pcase-dolist (`(,_ ,file-time ,_) tables)
