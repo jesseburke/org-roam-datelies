@@ -188,10 +188,11 @@ time-data contains the time span determined by time-period-tc (to
 check) and time-data-tc. Time-data is a list that depends on
 time-period, e.g., if time-period is \='day, then time-data is a
 list of the form (DAY MONTH YEAR)."
-  (cl-destructuring-bind (start end) (ordlies--time-period-start-and-end-times
-                                      time-period-tc time-data-tc)
-    (and (ordlies--time-in-time-period-p start time-period time-data)
-         (ordlies--time-in-time-period-p end time-period time-data))))
+  (unless (eq time-period-tc 'ever)
+    (cl-destructuring-bind (start end) (ordlies--time-period-start-and-end-times
+                                        time-period-tc time-data-tc)
+      (and (ordlies--time-in-time-period-p start time-period time-data)
+           (ordlies--time-in-time-period-p end time-period time-data)))))
 
 ;;; org-roam-datelies-node definition
 
