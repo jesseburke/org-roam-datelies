@@ -262,97 +262,22 @@ list of the form (DAY MONTH YEAR)."
                                                       (format-time-string "%A, %F"
                                                                           start-time)
                                                       " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
-        ('ever        
-           (setq directory (concat org-roam-datelies-dir "ever/"))
-           (setq template
-                 (ordlies--make-orl--template (concat directory "ever.org")
-                                              (concat "#+title: ever file\n\n"))))))
+        ('ever
+         (setq directory (concat org-roam-datelies-dir "ever/"))
+         (setq template
+               (ordlies--make-orl--template (concat directory "ever.org")
+                                            (concat "#+title: ever file\n\n"))))))
     (org-roam-datelies-node-create :time-period time-period :time time
                                    :directory directory :template template)))
 
-;;; node util functions
-
-(defun ordlies--get-node-time-period (&optional node)
-  "Return day, week, month, quarter, or ever if node is an
-Org-roam-lies node, nil otherwise.
-If node isn't specified, use node at point."
-  (unless node (setq node (org-roam-node-at-point)))
-  (let ((tag-list (org-roam-node-tags node)) return-str)
-    (dolist (tag tag-list)
-      (if (string-prefix-p "orl-" tag)
-          (setq return-str (substring tag 4 nil))))
-    (if return-str
-        (intern return-str)
-      (ordlies--type-from-file-name (org-roam-node-file node)))))
-
-(defun ordlies--type-from-file-name (&optional file)
-  "Return day, week, month, quarter, or ever if FILE is an
-org-roam-datelies note, nil otherwise. If FILE is not specified, use the
-current buffer's file-path."
-  (interactive)
-  (let ((dd (expand-file-name "daily" (expand-file-name org-roam-datelies-dir org-roam-directory)))
-        (wd (expand-file-name "weekly" (expand-file-name org-roam-datelies-dir org-roam-directory)))
-        (md (expand-file-name "monthly" (expand-file-name org-roam-datelies-dir org-roam-directory)))
-        (qd (expand-file-name "quarterly" (expand-file-name org-roam-datelies-dir org-roam-directory)))
-        (yd (expand-file-name "yearly" (expand-file-name org-roam-datelies-dir org-roam-directory)))
-        (ed (expand-file-name "ever" (expand-file-name org-roam-datelies-dir org-roam-directory))))
-    (when-let ((path (expand-file-name
-                      (or file
-                          (buffer-file-name (buffer-base-buffer))))))
-      (setq path (expand-file-name path))
-      (save-match-data
-        (cond ((f-descendant-of-p path dd) 'day)
-              ((f-descendant-of-p path wd) 'week)
-              ((f-descendant-of-p path md) 'month)
-              ((f-descendant-of-p path qd) 'quarter)
-              ((f-descendant-of-p path yd) 'year)
-              ((f-descendant-of-p path ed) 'ever))))))
-
-(defun ordlies--time-data-from-file-name (time-period filename)
-  "Assumes that dailies are names: YYYY-MM-DD, weeklies YYYY-WW,
-  monthlies YYYY-MM, quarterlies YYYY-Q, and yearlies YYYY."
-  (setq filename (file-name-base filename))
-  (pcase time-period
-    ('day
-     (let ((year (string-to-number (substring filename 0 4)))
-           (month (string-to-number (substring filename 5 7)))
-           (day (string-to-number (substring filename 8 10))))
-       (list day month year)))
-    ('week
-     (let ((year (string-to-number (substring filename 0 4)))
-           (week-no (string-to-number (substring filename 6 8))))
-       (list week-no year)))
-    ('month
-     (let ((year (string-to-number (substring filename 0 4)))
-           (month (string-to-number (substring filename 5 7))))
-       (list month year)))
-    ('quarter
-     (let ((year (string-to-number (substring filename 0 4)))
-           (quarter (string-to-number (substring filename 5 6))))
-       (list quarter year)))
-    ('year
-     (list (string-to-number (substring filename 0 4))))))
-
-(defun ordlies--node-start-and-end-times (&optional node)
-  "Returns a list of the form (start-time end-time)."
-  (unless node (setq node (org-roam-node-at-point)))
-  (let* ((timeperiod (ordlies--get-node-time-period))
-         (filename (org-roam-node-file node))
-         (timedata (ordlies--time-data-from-file-name timeperiod filename)))
-    (ordlies--time-period-start-and-end-times timeperiod timedata)))
-
-(defun ordlies--time-in-node-time-period (&optional node)
-  "returns a single time in the time period of the current file"
-  (car (ordlies--node-start-and-end-times node)))
-
-;;; props for ordlies nodes
+;;; prop-related (to distinguish ordlies nodes)
 
 (defvar ordlies--prop-and-valuefn-list
   '((day "ord-day" (lambda (time) (format-time-string "%Y-%m-%d" time)))
     (week "ord-week" (lambda (time)
                        (cl-destructuring-bind (week week-year)
                            (ordlies--time-to-week-number-and-year time)
-                         (concat (number-to-string week-year) "-" (number-to-string week)))))
+                         (concat (number-to-string week-year) "-" (format "%02d" week)))))
     (month "ord-month" (lambda (time) (format-time-string "%Y-%m" time)))
     (quarter "ord-quarter" (lambda (time) (format-time-string "%Y-%q" time)))
     (year "ord-year" (lambda (time) (format-time-string "%Y" time)))
