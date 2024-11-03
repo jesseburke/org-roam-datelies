@@ -424,22 +424,22 @@ list of the form (DAY MONTH YEAR)."
              :override-default-time)
 
 ;;;###autoload
-(defun org-roam-datelies--capture (time node &optional goto)
+(defun org-roam-datelies--capture (time time-period &optional goto)
   "Create a weekly, monthly, etc for time, creating it if neccessary."
   (defun ordlies--capture-cb ()
     (save-excursion
       (goto-char (point-min))
       (unless (ordlies--node-time-period)
         (apply 'org-set-property
-               (ordlies--compute-props time
-                                       (org-roam-datelies-node-time-period node)))
+               (ordlies--compute-props time time-period))
         (save-buffer)))
     (remove-hook 'org-roam-capture-new-node-hook #'ordlies--capture-cb))
   (add-hook 'org-roam-capture-new-node-hook #'ordlies--capture-cb)
-  (org-roam-capture- :goto (when goto '(4))
-                     :node node
-                     :templates (list (org-roam-datelies-node-template node))
-                     :props (list :override-default-time time)))
+  (let ((node (org-roam-datelies--create-node time-period time)))
+    (org-roam-capture- :goto (when goto '(4))
+                       :node node
+                       :templates (list (org-roam-datelies-node-template node))
+                       :props (list :override-default-time time))))
 
 (add-hook 'org-roam-capture-preface-hook
           #'org-roam-datelies--override-capture-time-h)
@@ -454,39 +454,32 @@ list of the form (DAY MONTH YEAR)."
 (defun org-roam-datelies-today ()
   "Find the daily-note for today, creating it if necessary."
   (interactive)
-  (org-roam-datelies--capture (current-time)
-                              (org-roam-datelies--create-node 'day (current-time)) t))
+  (org-roam-datelies--capture (current-time) 'day t))
 
 (defun org-roam-datelies-this-week ()
   "Find the weekly-note for this week, creating it if necessary."
   (interactive)
-  (org-roam-datelies--capture (current-time)
-                              (org-roam-datelies--create-node 'week (current-time)) t))
+  (org-roam-datelies--capture (current-time) 'week t))
 
 (defun org-roam-datelies-this-month ()
   "Find the monthly-note for this month, creating it if necessary."
   (interactive)
-  (org-roam-datelies--capture (current-time)
-                              (org-roam-datelies--create-node 'month (current-time)) t))
+  (org-roam-datelies--capture (current-time) 'month t))
 
 (defun org-roam-datelies-this-quarter ()
   "Find the quarterly-note for this quarter, creating it if necessary."
   (interactive)
-  (org-roam-datelies--capture (current-time)
-                              (org-roam-datelies--create-node 'quarter (current-time)) t))
+  (org-roam-datelies--capture (current-time) 'quarter t))
 
 (defun org-roam-datelies-this-year ()
   "Find the yearly-note for this year, creating it if necessary."
   (interactive)
-  (org-roam-datelies--capture (current-time)
-                              (org-roam-datelies--create-node 'year (current-time)) t))
+  (org-roam-datelies--capture (current-time) 'year t))
 
 (defun org-roam-datelies-ever ()
   "Find the everly-note, creating it if necessary."
   (interactive)
-  (org-roam-datelies--capture (current-time) (org-roam-datelies--create-node 'ever
-                                                                             (current-time))
-                              t))
+  (org-roam-datelies--capture (current-time) 'ever t))
 
 ;;; find by date
 
@@ -495,36 +488,35 @@ list of the form (DAY MONTH YEAR)."
   (interactive "P")
   (let ((time (let ((org-read-date-prefer-future prefer-future))
                 (org-read-date t t nil "Find daily-note: "))))
-    (org-roam-datelies--capture time (org-roam-datelies--create-node 'day time) t)))
+    (org-roam-datelies--capture time 'day t)))
 
 (defun org-roam-datelies-find-date-for-week (&optional prefer-future)
   "Find the weekly-note for a date using the calendar."
   (interactive "P")
   (let ((time (let ((org-read-date-prefer-future prefer-future))
                 (org-read-date t t nil "Find weekly-note: "))))
-    (org-roam-datelies--capture time (org-roam-datelies--create-node 'week time) t)))
+    (org-roam-datelies--capture time 'week t)))
 
 (defun org-roam-datelies-find-date-for-month (&optional prefer-future)
   "Find the monthly-note for a date using the calendar."
   (interactive "P")
   (let ((time (let ((org-read-date-prefer-future prefer-future))
                 (org-read-date t t nil "Find monthly-note: "))))
-    (org-roam-datelies--capture time(org-roam-datelies--create-node 'month time) t)))
+    (org-roam-datelies--capture time 'month t)))
 
 (defun org-roam-datelies-find-date-for-quarter (&optional prefer-future)
   "Find the quarterly-note for a date using the calendar."
   (interactive "P")
   (let ((time (let ((org-read-date-prefer-future prefer-future))
                 (org-read-date t t nil "Find quarterly-note: "))))
-    (org-roam-datelies--capture time
-                                (org-roam-datelies--create-node 'quarter time) t)))
+    (org-roam-datelies--capture time 'quarter t)))
 
 (defun org-roam-datelies-find-date-for-year (&optional prefer-future)
   "Find the yearly-note for a date using the calendar."
   (interactive "P")
   (let ((time (let ((org-read-date-prefer-future prefer-future))
                 (org-read-date t t nil "Find yearly-note: "))))
-    (org-roam-datelies--capture time (org-roam-datelies--create-node 'year (current-time)) t)))
+    (org-roam-datelies--capture time 'year t)))
 
 ;;; find relative
 
@@ -538,7 +530,7 @@ list of the form (DAY MONTH YEAR)."
       ('month (setq time (ordlies--time-plus-months (ordlies--time-in-node-time-period) -1)))
       ('quarter (setq time (ordlies--time-plus-quarter (ordlies--time-in-node-time-period) -1)))
       ('year (setq time (ordlies--time-plus-years (ordlies--time-in-node-time-period) -1))))
-    (org-roam-datelies--capture time (org-roam-datelies--create-node time-period time) t)))
+    (org-roam-datelies--capture time time-period t)))
 
 (defun org-roam-datelies-find-forward ()
   "Find the previous datelies note in the current time-period"
@@ -550,7 +542,7 @@ list of the form (DAY MONTH YEAR)."
       ('month (setq time (ordlies--time-plus-months (ordlies--time-in-node-time-period) 1)))
       ('quarter (setq time (ordlies--time-plus-quarter (ordlies--time-in-node-time-period) 1)))
       ('year (setq time (ordlies--time-plus-years (ordlies--time-in-node-time-period) 1))))
-    (org-roam-datelies--capture time (org-roam-datelies--create-node time-period time) t)))
+    (org-roam-datelies--capture time time-period t)))
 
 (defun org-roam-datelies-find-up ()
   "if in weekly file, goes to the monthly file for the month
@@ -558,14 +550,14 @@ containing the first day of the file's week; analogous if in
 monthly or quarterly file."
   (interactive)
   (let* ((time-period (ordlies--node-time-period))
-         (time (ordlies--time-in-node-time-period)) node)
+         (time (ordlies--time-in-node-time-period)) new-time-period)
     (pcase time-period
-      ('day (setq node (org-roam-datelies--create-node 'week time)))
-      ('week (setq node (org-roam-datelies--create-node 'month time)))
-      ('month (setq node (org-roam-datelies--create-node 'quarter time)))
-      ('quarter (setq node (org-roam-datelies--create-node 'year time)))
-      ('year (setq node (org-roam-datelies--create-node 'ever time))))
-    (org-roam-datelies--capture time node t)))
+      ('day (setq new-time-period 'week))
+      ('week (setq new-time-period 'month))
+      ('month (setq new-time-period 'quarter))
+      ('quarter (setq new-time-period 'year))
+      ('year (setq new-time-period 'ever)))
+    (org-roam-datelies--capture time new-time-period t)))
 
 (defun org-roam-datelies-find-down-first ()
   "If in weekly file, goes to the daily file for the first day of
@@ -580,7 +572,7 @@ monthly or quarterly file."
       ('month (setq new-time-period 'week))
       ('quarter (setq new-time-period 'month))
       ('year (setq new-time-period 'quarter)))
-    (org-roam-datelies--capture start-time (org-roam-datelies--create-node new-time-period start-time) t)))
+    (org-roam-datelies--capture start-time new-time-period t)))
 
 (defun org-roam-datelies-find-down-last ()
   "If in weekly file, goes to the daily file for the last day of
@@ -595,7 +587,7 @@ monthly or quarterly file."
       ('month (setq new-time-period 'week))
       ('quarter (setq new-time-period 'month))
       ('year (setq new-time-period 'quarter)))
-    (org-roam-datelies--capture end-time (org-roam-datelies--create-node new-time-period end-time) t)))
+    (org-roam-datelies--capture end-time new-time-period t)))
 
 ;;; agenda and related functions
 
