@@ -72,16 +72,16 @@
        (encode-time sec min hour day (- 12 (+ month no-months)) (- year 1))))))
 
 (with-no-warnings
-  (defun ordlies--time-plus-quarter (time no-months)
-    "NO-MONTHS should be 1 or -1; if TIME represents the date 15 june,
-for example, then this will return the time of 15 sep, when no-months
-  is 1, and the time of 15 march, when no-months is -1."
+  (defun ordlies--time-plus-quarter (time no-quarters)
+    "NO-QUARTERS should be 1 or -1; if TIME represents the date 15 june,
+for example, then this will return the time of 15 sep, when NO-QUARTERS
+  is 1, and the time of 15 march, when NO-QUARTERS is -1."
     (pcase-let ((`(,sec ,min ,hour ,day ,month ,year)
                  (decode-time time)))
-      (if (equal no-months 1)
+      (if (equal no-quarters 1)
           (if (< month 10) (encode-time sec min hour day (+ month 3) year)
             (encode-time sec min hour day (- month 9) (+ year 1)))
-        (if (equal no-months -1)
+        (if (equal no-quarters -1)
             (if (> month 3) (encode-time sec min hour day (- month 3) year)
               (encode-time sec min hour day (+ 9 month) (- year 1)))
           (message "ordlies--time-plus-quarter should be 1 or -1"))))))
@@ -366,18 +366,6 @@ list of the form (DAY MONTH YEAR)."
 
 ;; (ordlies--node-time-data (org-roam-node-properties test-node))
 
-(defun org-roam-datelies--all-nodes ()
-  "Returns a list corresponding to all datelies nodes. Each element of the list has the
-  form (file properties), where properties is a plist."
-  (org-roam-db-query [:select [nodes:file properties]
-                              :from nodes
-                              :where (like
-                                      properties '"%ORD-%")]))
-
-;; (org-roam-datelies--all-nodes)
-;; (ordlies--node-time-data-string (cadar (org-roam-datelies--all-nodes)))
-;; (ordlies--node-time-period (cadar (org-roam-datelies--all-nodes)))
-
 (defun ordlies--node-start-and-end-times (&optional node-props)
   "Returns a list of the form (start-time end-time)."
   (unless node-props (setq node-props (org-roam-node-properties
@@ -396,6 +384,17 @@ list of the form (DAY MONTH YEAR)."
 
 ;; (ordlies--time-in-node-time-period (org-roam-node-properties test-node))
 
+(defun org-roam-datelies--all-nodes ()
+  "Returns a list corresponding to all datelies nodes. Each element of the list has the
+  form (file properties), where properties is a plist."
+  (org-roam-db-query [:select [nodes:file properties]
+                              :from nodes
+                              :where (like
+                                      properties '"%ORD-%")]))
+
+;; (org-roam-datelies--all-nodes)
+;; (ordlies--node-time-data-string (cadar (org-roam-datelies--all-nodes)))
+;; (ordlies--node-time-period (cadar (org-roam-datelies--all-nodes)))
 
 ;; TODO: make this more efficient by querying db directly
 (defun ordlies--files-under (&optional node-props)
@@ -452,11 +451,44 @@ list of the form (DAY MONTH YEAR)."
       (org-capture-put :default-time (org-roam-capture--get :override-default-time)))))
 
 ;;; find functions
-(defun org-roam-datelies-find-this-day ()
+(defun org-roam-datelies-today ()
   "Find the daily-note for today, creating it if necessary."
   (interactive)
   (org-roam-datelies--capture (current-time)
                               (org-roam-datelies--create-node 'day (current-time)) t))
+
+(defun org-roam-datelies-this-week ()
+  "Find the weekly-note for this week, creating it if necessary."
+  (interactive)
+  (org-roam-datelies--capture (current-time)
+                              (org-roam-datelies--create-node 'week (current-time)) t))
+
+(defun org-roam-datelies-this-month ()
+  "Find the monthly-note for this month, creating it if necessary."
+  (interactive)
+  (org-roam-datelies--capture (current-time)
+                              (org-roam-datelies--create-node 'month (current-time)) t))
+
+(defun org-roam-datelies-this-quarter ()
+  "Find the quarterly-note for this quarter, creating it if necessary."
+  (interactive)
+  (org-roam-datelies--capture (current-time)
+                              (org-roam-datelies--create-node 'quarter (current-time)) t))
+
+(defun org-roam-datelies-this-year ()
+  "Find the yearly-note for this year, creating it if necessary."
+  (interactive)
+  (org-roam-datelies--capture (current-time)
+                              (org-roam-datelies--create-node 'year (current-time)) t))
+
+(defun org-roam-datelies-ever ()
+  "Find the everly-note, creating it if necessary."
+  (interactive)
+  (org-roam-datelies--capture (current-time) (org-roam-datelies--create-node 'ever
+                                                                             (current-time))
+                              t))
+
+;;; find by date
 
 (defun org-roam-datelies-find-date-for-day (&optional prefer-future)
   "Find the daily-note for a date using the calendar."
@@ -465,12 +497,6 @@ list of the form (DAY MONTH YEAR)."
                 (org-read-date t t nil "Find daily-note: "))))
     (org-roam-datelies--capture time (org-roam-datelies--create-node 'day time) t)))
 
-(defun org-roam-datelies-find-this-week ()
-  "Find the weekly-note for this week, creating it if necessary."
-  (interactive)
-  (org-roam-datelies--capture (current-time)
-                              (org-roam-datelies--create-node 'week (current-time)) t))
-
 (defun org-roam-datelies-find-date-for-week (&optional prefer-future)
   "Find the weekly-note for a date using the calendar."
   (interactive "P")
@@ -478,24 +504,12 @@ list of the form (DAY MONTH YEAR)."
                 (org-read-date t t nil "Find weekly-note: "))))
     (org-roam-datelies--capture time (org-roam-datelies--create-node 'week time) t)))
 
-(defun org-roam-datelies-find-this-month ()
-  "Find the monthly-note for this month, creating it if necessary."
-  (interactive)
-  (org-roam-datelies--capture (current-time)
-                              (org-roam-datelies--create-node 'month (current-time)) t))
-
 (defun org-roam-datelies-find-date-for-month (&optional prefer-future)
   "Find the monthly-note for a date using the calendar."
   (interactive "P")
   (let ((time (let ((org-read-date-prefer-future prefer-future))
                 (org-read-date t t nil "Find monthly-note: "))))
     (org-roam-datelies--capture time(org-roam-datelies--create-node 'month time) t)))
-
-(defun org-roam-datelies-find-this-quarter ()
-  "Find the quarterly-note for this quarter, creating it if necessary."
-  (interactive)
-  (org-roam-datelies--capture (current-time)
-                              (org-roam-datelies--create-node 'quarter (current-time)) t))
 
 (defun org-roam-datelies-find-date-for-quarter (&optional prefer-future)
   "Find the quarterly-note for a date using the calendar."
@@ -505,23 +519,12 @@ list of the form (DAY MONTH YEAR)."
     (org-roam-datelies--capture time
                                 (org-roam-datelies--create-node 'quarter time) t)))
 
-(defun org-roam-datelies-find-this-year ()
-  "Find the yearly-note for this year, creating it if necessary."
-  (interactive)
-  (org-roam-datelies--capture (current-time)
-                              (org-roam-datelies--create-node 'year (current-time)) t))
-
 (defun org-roam-datelies-find-date-for-year (&optional prefer-future)
   "Find the yearly-note for a date using the calendar."
   (interactive "P")
   (let ((time (let ((org-read-date-prefer-future prefer-future))
                 (org-read-date t t nil "Find yearly-note: "))))
     (org-roam-datelies--capture time (org-roam-datelies--create-node 'year (current-time)) t)))
-
-(defun org-roam-datelies-find-ever ()
-  "Find the everly-note, creating it if necessary."
-  (interactive)
-  (org-roam-datelies--capture (current-time) (org-roam-datelies--create-node 'ever (current-time)) t))
 
 ;;; find relative
 
@@ -744,12 +747,12 @@ argument, then copy the entry to location."
 (define-key org-roam-datelies-map (kbd "j") #'org-roam-datelies-find-previous)
 (define-key org-roam-datelies-map (kbd "l") #'org-roam-datelies-find-forward)
 (define-key org-roam-datelies-map (kbd "i") #'org-roam-datelies-find-up)
-(define-key org-roam-datelies-map (kbd "d") #'org-roam-datelies-find-this-day)
-(define-key org-roam-datelies-map (kbd "w") #'org-roam-datelies-find-this-week)
-(define-key org-roam-datelies-map (kbd "m") #'org-roam-datelies-find-this-month)
-(define-key org-roam-datelies-map (kbd "q") #'org-roam-datelies-find-this-quarter)
-(define-key org-roam-datelies-map (kbd "y") #'org-roam-datelies-find-this-year)
-(define-key org-roam-datelies-map (kbd "e") #'org-roam-datelies-find-ever)
+(define-key org-roam-datelies-map (kbd "d") #'org-roam-datelies-today)
+(define-key org-roam-datelies-map (kbd "w") #'org-roam-datelies-this-week)
+(define-key org-roam-datelies-map (kbd "m") #'org-roam-datelies-this-month)
+(define-key org-roam-datelies-map (kbd "q") #'org-roam-datelies-this-quarter)
+(define-key org-roam-datelies-map (kbd "y") #'org-roam-datelies-this-year)
+(define-key org-roam-datelies-map (kbd "e") #'org-roam-datelies-ever)
 (define-key org-roam-datelies-map (kbd "u") (lambda () (interactive)
                                               (jb/up-heading)
                                               (forward-char)
@@ -762,12 +765,12 @@ argument, then copy the entry to location."
 (define-key org-roam-datelies-map (kbd "M-j") #'org-roam-datelies-find-previous)
 (define-key org-roam-datelies-map (kbd "M-l") #'org-roam-datelies-find-forward)
 (define-key org-roam-datelies-map (kbd "M-i") #'org-roam-datelies-find-up)
-(define-key org-roam-datelies-map (kbd "M-d") #'org-roam-datelies-find-this-day)
-(define-key org-roam-datelies-map (kbd "M-w") #'org-roam-datelies-find-this-week)
-(define-key org-roam-datelies-map (kbd "M-m") #'org-roam-datelies-find-this-month)
-(define-key org-roam-datelies-map (kbd "M-q") #'org-roam-datelies-find-this-quarter)
-(define-key org-roam-datelies-map (kbd "M-y") #'org-roam-datelies-find-this-year)
-(define-key org-roam-datelies-map (kbd "M-e") #'org-roam-datelies-find-ever)
+(define-key org-roam-datelies-map (kbd "M-d") #'org-roam-datelies-today)
+(define-key org-roam-datelies-map (kbd "M-w") #'org-roam-datelies-this-week)
+(define-key org-roam-datelies-map (kbd "M-m") #'org-roam-datelies-this-month)
+(define-key org-roam-datelies-map (kbd "M-q") #'org-roam-datelies-this-quarter)
+(define-key org-roam-datelies-map (kbd "M-y") #'org-roam-datelies-this-year)
+(define-key org-roam-datelies-map (kbd "M-e") #'org-roam-datelies-ever)
 (define-key org-roam-datelies-map (kbd "M-u") (lambda () (interactive)
                                                 (jb/up-heading)
                                                 (forward-char)
@@ -787,12 +790,12 @@ argument, then copy the entry to location."
 (define-key orl-down-map (kbd "l") #'org-roam-datelies-find-down-last)
 
 
-(dolist (command '(org-roam-datelies-find-this-day
-                   org-roam-datelies-find-this-week
-                   org-roam-datelies-find-this-month
-                   org-roam-datelies-find-this-quarter
-                   org-roam-datelies-find-this-year
-                   org-roam-datelies-find-ever
+(dolist (command '(org-roam-datelies-today
+                   org-roam-datelies-this-week
+                   org-roam-datelies-this-month
+                   org-roam-datelies-this-quarter
+                   org-roam-datelies-this-year
+                   org-roam-datelies-ever
                    org-roam-datelies-find-previous
                    org-roam-datelies-find-forward
                    org-roam-datelies-find-up
