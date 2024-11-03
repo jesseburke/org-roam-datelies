@@ -52,44 +52,19 @@
 ;;; date and time functions
 
 ;;;; time plus ...
-(defun ordlies--time-plus-days (time no-days)
-  (interactive)
-  (time-add time (* 86400 no-days)))
 
-(defun ordlies--time-plus-weeks (time no-weeks)
-  (interactive)
-  (time-add time (* 86400 7 no-weeks)))
-
-(defun ordlies--time-plus-months (time no-months)
-  "NO-MONTHS should be between -11 and 11."
+(defun ordlies--time-plus (time time-period-to-add number)
   (cl-destructuring-bind (sec min hour day month year _ _ _) (decode-time time)
-    (pcase (+ month no-months)
-      ((pred (lambda (new-month) (<= new-month 12)))
-       (encode-time sec min hour day (+ month no-months) year))
-      ((pred (lambda (new-month) (> new-month 12)))
-       (encode-time sec min hour day (- (+ month no-months) 12) (+ year 1)))
-      ((pred (lambda (new-month) (< new-month 1)))
-       (encode-time sec min hour day (- 12 (+ month no-months)) (- year 1))))))
+    (pcase time-period-to-add
+      ('day (encode-time sec min hour (+ day number) month year))
+      ('week (encode-time sec min hour (+ day (* 7 number)) month year))
+      ('month (encode-time sec min hour day (+ month number) year))
+      ('quarter (encode-time sec min hour day (+ month (* 3 number)) year))
+      ('year (encode-time sec min hour day month (+ year number))))))
 
-(with-no-warnings
-  (defun ordlies--time-plus-quarter (time no-quarters)
-    "NO-QUARTERS should be 1 or -1; if TIME represents the date 15 june,
-for example, then this will return the time of 15 sep, when NO-QUARTERS
-  is 1, and the time of 15 march, when NO-QUARTERS is -1."
-    (pcase-let ((`(,sec ,min ,hour ,day ,month ,year)
-                 (decode-time time)))
-      (if (equal no-quarters 1)
-          (if (< month 10) (encode-time sec min hour day (+ month 3) year)
-            (encode-time sec min hour day (- month 9) (+ year 1)))
-        (if (equal no-quarters -1)
-            (if (> month 3) (encode-time sec min hour day (- month 3) year)
-              (encode-time sec min hour day (+ 9 month) (- year 1)))
-          (message "ordlies--time-plus-quarter should be 1 or -1"))))))
-
-(defun ordlies--time-plus-years (time no-years)
-  (pcase-let ((`(,sec ,min ,hour ,day ,month ,year)
-               (decode-time time)))
-    (encode-time sec min hour day month (+ year no-years))))
+;; (setq test-time (current-time))
+;; (decode-time (ordlies--time-plus test-time 'day -2))
+;; (decode-time (encode-time 0 0 0 1 14 2024))
 
 ;;;; time to dates
 
@@ -106,7 +81,7 @@ from the Saturday of week 1, can calculate how many weeks the
 difference is."
   (let* ((time-day-of-week (string-to-number (format-time-string "%w" time)))
          (time-on-week-end-day
-          (ordlies--time-plus-days time (- 7 (1+ time-day-of-week))))
+          (ordlies--time-plus time 'day (- 7 (1+ time-day-of-week))))
          (year (string-to-number (format-time-string "%Y" time-on-week-end-day)))
          (week1-end-time (cadr (ordlies--week1-start-and-end-times year)))
          (time-difference-in-secs (floor (float-time (time-subtract time-on-week-end-day week1-end-time ))))
@@ -144,8 +119,8 @@ week containing Jan. 1, YEAR."
   "Returns a time on the start day and a time on the end day of the
 week WEEK on YEAR. Weeks are numbered so that the week that Jan 1
 occurs in is Week 1."
-  (seq-map (lambda (time) (ordlies--time-plus-weeks time (1- week))) (ordlies--week1-start-and-end-times
-                                                                      year)))
+  (seq-map (lambda (time) (ordlies--time-plus time 'week (1- week)))
+           (ordlies--week1-start-and-end-times year)))
 
 (defun ordlies--month-start-and-end-times (month year)
   (list (encode-time 0 0 0 1 month year)
@@ -165,8 +140,9 @@ occurs in is Week 1."
 (defun ordlies--time-period-start-and-end-times (time-period time-data)
   "Time-data is a list that depends on time-period, e.g., if time-period
 is \='day, then time-data is a list of the form (DAY MONTH YEAR)."
-  (apply (intern (concat "ordlies--" (symbol-name time-period) "-start-and-end-times")) time-data))
-
+  (apply (intern (concat "ordlies--" (symbol-name time-period) "-start-and-end-times"))
+         time-data))
+  
 ;; (ordlies--time-period-start-and-end-times 'month '(10 2022))
 ;; ((25399 47936) (25440 39300))
 
@@ -369,7 +345,7 @@ list of the form (DAY MONTH YEAR)."
 (defun ordlies--node-start-and-end-times (&optional node-props)
   "Returns a list of the form (start-time end-time)."
   (unless node-props (setq node-props (org-roam-node-properties
-                                       (org-roam-node-at-point))))  
+                                       (org-roam-node-at-point))))
   (let ((timeperiod (ordlies--node-time-period node-props))
         (timedata (ordlies--node-time-data node-props)))
     (ordlies--time-period-start-and-end-times timeperiod timedata)))
@@ -378,7 +354,7 @@ list of the form (DAY MONTH YEAR)."
 
 (defun ordlies--time-in-node-time-period (&optional node-props)
   "returns a single time in the time period of the current file"
-   (unless node-props (setq node-props (org-roam-node-properties
+  (unless node-props (setq node-props (org-roam-node-properties
                                        (org-roam-node-at-point))))
   (car (ordlies--node-start-and-end-times node-props)))
 
@@ -523,26 +499,18 @@ list of the form (DAY MONTH YEAR)."
 (defun org-roam-datelies-find-previous ()
   "Goto the previous datelies note in the current time-period."
   (interactive)
-  (let ((time-period (ordlies--node-time-period)) time)
-    (pcase time-period
-      ('day (setq time (ordlies--time-plus-days (ordlies--time-in-node-time-period) -1)))
-      ('week (setq time (ordlies--time-plus-weeks (ordlies--time-in-node-time-period) -1)))
-      ('month (setq time (ordlies--time-plus-months (ordlies--time-in-node-time-period) -1)))
-      ('quarter (setq time (ordlies--time-plus-quarter (ordlies--time-in-node-time-period) -1)))
-      ('year (setq time (ordlies--time-plus-years (ordlies--time-in-node-time-period) -1))))
-    (org-roam-datelies--capture time time-period t)))
+  (let* ((time-period (ordlies--node-time-period))
+         (time (ordlies--time-in-node-time-period))
+         (new-time (ordlies--time-plus time time-period -1)))
+    (org-roam-datelies--capture new-time time-period t)))
 
 (defun org-roam-datelies-find-forward ()
-  "Find the previous datelies note in the current time-period"
+  "Goto the next datelies note in the current time-period."
   (interactive)
-  (let ((time-period (ordlies--node-time-period)) time)
-    (pcase time-period
-      ('day (setq time (ordlies--time-plus-days (ordlies--time-in-node-time-period) 1)))
-      ('week (setq time (ordlies--time-plus-weeks (ordlies--time-in-node-time-period) 1)))
-      ('month (setq time (ordlies--time-plus-months (ordlies--time-in-node-time-period) 1)))
-      ('quarter (setq time (ordlies--time-plus-quarter (ordlies--time-in-node-time-period) 1)))
-      ('year (setq time (ordlies--time-plus-years (ordlies--time-in-node-time-period) 1))))
-    (org-roam-datelies--capture time time-period t)))
+  (let* ((time-period (ordlies--node-time-period))
+         (time (ordlies--time-in-node-time-period))
+         (new-time (ordlies--time-plus time time-period 1)))
+    (org-roam-datelies--capture new-time time-period t)))
 
 (defun org-roam-datelies-find-up ()
   "if in weekly file, goes to the monthly file for the month
@@ -604,7 +572,7 @@ monthly or quarterly file."
 (defun org-roam-datelies-time-worked ()
   "Find the total time worked in all of the files under the current
 buffer, or full-filename if provided."
-  (interactive)    
+  (interactive)
   (let* ((files (ordlies--files-under))
          (tables
           (if (consp files)
