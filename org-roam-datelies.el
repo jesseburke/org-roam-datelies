@@ -327,10 +327,8 @@ MONTH YEAR)."
 
 ;; (ordlies--files-under test-props)
 
-;;; org-roam-datelies-node definition
+;;; capture and related
 
-(cl-defstruct (org-roam-datelies-node (:include org-roam-node) (:constructor org-roam-datelies-node-constructor))
-  time template)
 
 (defun ordlies--dir-file-head (time-period time)
   "Given time-period and time, returns a list of the form (dir (file-str head-str))."
@@ -342,7 +340,7 @@ MONTH YEAR)."
                       ,(concat "#+title: ever file\n\n")))
       (cl-destructuring-bind (start-time end-time)
           (ordlies--time-period-start-and-end-times time-period (ordlies--time-and-period-to-time-data
-                                                                 time-period time))    
+                                                                 time-period time))
         (list directory
               (pcase time-period
                 ('day
@@ -368,8 +366,6 @@ MONTH YEAR)."
                  `(,(concat directory "%<%Y>.org")
                    ,(concat "#+title: %<%Y>\n\n" (format-time-string "%A, %F" start-time) " -- " (format-time-string "%A, %F" end-time) "\n\n")))))))))
 
-
-;;; capture
 (add-to-list 'org-roam-capture--template-keywords
              :override-default-time)
 
@@ -387,13 +383,11 @@ MONTH YEAR)."
   (add-hook 'org-roam-capture-new-node-hook #'ordlies--capture-cb)
   (cl-destructuring-bind (directory (file-str head-str))
       (ordlies--dir-and-template time-period time)
-    (let* ((template `("d" "default" entry
-                       "* %?"
-                       :if-new (file+head ,file-str ,head-str)))
-           (node (org-roam-datelies-node-constructor  :time time
-                                                      :template template)))
+    (let ((template `("d" "default" entry
+                      "* %?"
+                      :if-new (file+head ,file-str ,head-str))))
       (org-roam-capture- :goto (when goto '(4))
-                         :node node
+                         :node (org-roam-node-create)
                          :templates (list template)
                          :props (list :override-default-time time)))))
 
