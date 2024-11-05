@@ -252,28 +252,25 @@ MONTH YEAR)."
 
 (defun ordlies--node-time-data (&optional node-props)
   (unless node-props (setq node-props (org-roam-node-properties (org-roam-node-at-point))))
-  (let ((time-period (ordlies--node-time-period node-props))
-        (time-data-string (ordlies--node-time-data-string node-props)))
+  (let* ((time-period (ordlies--node-time-period node-props))
+         (time-data-string (ordlies--node-time-data-string node-props))
+         (year (string-to-number (substring time-data-string 0 4))))
     (pcase time-period
       ('day
-       (let ((year (string-to-number (substring time-data-string 0 4)))
-             (month (string-to-number (substring time-data-string 5 7)))
+       (let ((month (string-to-number (substring time-data-string 5 7)))
              (day (string-to-number (substring time-data-string 8 10))))
          (list day month year)))
       ('week
-       (let ((year (string-to-number (substring time-data-string 0 4)))
-             (week-no (string-to-number (substring time-data-string 5 7))))
+       (let ((week-no (string-to-number (substring time-data-string 5 7))))
          (list week-no year)))
       ('month
-       (let ((year (string-to-number (substring time-data-string 0 4)))
-             (month (string-to-number (substring time-data-string 5 7))))
+       (let ((month (string-to-number (substring time-data-string 5 7))))
          (list month year)))
       ('quarter
-       (let ((year (string-to-number (substring time-data-string 0 4)))
-             (quarter (string-to-number (substring time-data-string 5 6))))
+       (let ((quarter (string-to-number (substring time-data-string 5 6))))
          (list quarter year)))
       ('year
-       (list (string-to-number (substring time-data-string 0 4)))))))
+       (list year)))))
 
 ;; (ordlies--node-time-data (org-roam-node-properties test-node))
 
