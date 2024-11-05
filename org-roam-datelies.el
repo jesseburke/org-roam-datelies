@@ -183,82 +183,6 @@ MONTH YEAR)."
       (and (ordlies--time-in-time-period-p start time-period time-data)
            (ordlies--time-in-time-period-p end time-period time-data)))))
 
-;;; org-roam-datelies-node definition
-
-(cl-defstruct (org-roam-datelies-node (:include org-roam-node) (:constructor org-roam-datelies-node-create))
-  time-period time directory template)
-
-(defun ordlies--make-orl--template (file-str head-str)
-  `("d" "default" entry
-    "* %?"
-    :if-new (file+head ,(expand-file-name file-str org-roam-directory) ,head-str)))
-
-(defun org-roam-datelies--create-node (time-period time)
-  (let* (directory template)
-    (cl-destructuring-bind (_ month quarter year)
-        (ordlies--time-to-day-month-quarter-year time)
-      (pcase time-period
-        ('day
-         (setq directory (concat org-roam-datelies-dir "daily/"))
-         (setq template
-               (ordlies--make-orl--template (concat directory "%<%Y-%m-%d>.org")
-                                            (concat "#+title:%<%Y-%m-%d>" "\n\n" (format-time-string "%A, %F" time) "\n\n"))))
-        ('week
-         (cl-destructuring-bind (week week-year)
-             (ordlies--time-to-week-number-and-year time)
-           (cl-destructuring-bind (start-time end-time)
-               (ordlies--week-start-and-end-times week week-year)
-             (setq directory (concat org-roam-datelies-dir "weekly/"))
-             (setq template
-                   (ordlies--make-orl--template
-                    (concat directory
-                            (concat (number-to-string week-year)
-                                    "-W"
-                                    (format "%02d" week)
-                                    ".org"))
-                    (concat "#+title: " (number-to-string week-year)
-                            " week " (format "%02d" week) "\n\n"
-                            (format-time-string "%A, %F"
-                                                start-time)
-                            " -- "(format-time-string "%A, %F" end-time) "\n\n"))))))
-        ('month
-         (cl-destructuring-bind (start-time end-time)
-             (ordlies--month-start-and-end-times month year)
-           (setq directory (concat org-roam-datelies-dir "monthly/"))
-           (setq template
-                 (ordlies--make-orl--template (concat directory "%<%Y-%m>.org")
-                                              (concat "#+title: %<%Y %B>\n\n"
-                                                      (format-time-string "%A, %F"
-                                                                          start-time)
-                                                      " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
-        ('quarter
-         (cl-destructuring-bind (start-time end-time)
-             (ordlies--quarter-start-and-end-times quarter year)
-           (setq directory (concat org-roam-datelies-dir "quarterly/"))
-           (setq template
-                 (ordlies--make-orl--template (concat directory "%<%Y-%q>.org")
-                                              (concat "#+title: %<%Y quarter %q>\n\n"
-                                                      (format-time-string "%A, %F"
-                                                                          start-time)
-                                                      " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
-        ('year
-         (cl-destructuring-bind (start-time end-time)
-             (ordlies--year-start-and-end-times year)
-           (setq directory (concat org-roam-datelies-dir "yearly/"))
-           (setq template
-                 (ordlies--make-orl--template (concat directory "%<%Y>.org")
-                                              (concat "#+title: %<%Y>\n\n"
-                                                      (format-time-string "%A, %F"
-                                                                          start-time)
-                                                      " -- " (format-time-string "%A, %F" end-time) "\n\n")))))
-        ('ever
-         (setq directory (concat org-roam-datelies-dir "ever/"))
-         (setq template
-               (ordlies--make-orl--template (concat directory "ever.org")
-                                            (concat "#+title: ever file\n\n"))))))
-    (org-roam-datelies-node-create :time-period time-period :time time
-                                   :directory directory :template template)))
-
 ;;; prop-related (to distinguish ordlies nodes)
 
 (defvar ordlies--prop-and-valuefn-list
@@ -407,6 +331,68 @@ MONTH YEAR)."
 
 ;; (ordlies--files-under test-props)
 
+;;; org-roam-datelies-node definition
+
+(cl-defstruct (org-roam-datelies-node (:include org-roam-node) (:constructor org-roam-datelies-node-constructor))
+  time-period time directory template)
+
+(defun ordlies--make-orl--template (file-str head-str)
+  `("d" "default" entry
+    "* %?"
+    :if-new (file+head ,(expand-file-name file-str org-roam-directory) ,head-str)))
+
+(defun ordlies--dir-and-template (time-period time)
+  (cl-destructuring-bind (_ month quarter year)
+      (ordlies--time-to-day-month-quarter-year time)
+    (cl-destructuring-bind (start-time end-time)
+        (ordlies--time-period-start-and-end-times time-period (ordlies--time-and-period-to-time-data
+                                                               time-period time))
+      (let ((directory (expand-file-name
+                        (concat org-roam-datelies-dir (symbol-name time-period)  "/")
+                        org-roam-directory)))
+        (list directory
+              (pcase time-period
+                ('day
+                 (ordlies--make-orl--template
+                  (concat directory "%<%Y-%m-%d>.org")
+                  (concat "#+title:%<%Y-%m-%d>" "\n\n" (format-time-string "%A, %F" time) "\n\n")))
+                ('week
+                 (cl-destructuring-bind (week week-year)
+                     (ordlies--time-to-week-number-and-year time)
+                   (ordlies--make-orl--template
+                    (concat directory (concat (number-to-string week-year) "-W" (format "%02d" week) ".org"))
+                    (concat "#+title: " (number-to-string week-year) " week " (format "%02d" week) "\n\n"
+                            (format-time-string "%A, %F"
+                                                start-time)
+                            " -- "(format-time-string "%A, %F" end-time) "\n\n"))))
+                ('month
+                 (ordlies--make-orl--template
+                  (concat directory "%<%Y-%m>.org")
+                  (concat "#+title: %<%Y %B>\n\n" (format-time-string "%A, %F" start-time)
+                          " -- " (format-time-string "%A, %F" end-time) "\n\n")))
+                ('quarter
+                 (ordlies--make-orl--template
+                  (concat directory "%<%Y-%q>.org")
+                  (concat "#+title: %<%Y quarter %q>\n\n" (format-time-string "%A, %F" start-time)
+                          " -- " (format-time-string "%A, %F" end-time) "\n\n")))
+                ('year
+                 (ordlies--make-orl--template
+                  (concat directory "%<%Y>.org")
+                  (concat "#+title: %<%Y>\n\n" (format-time-string "%A, %F" start-time) " -- " (format-time-string "%A, %F" end-time) "\n\n")))
+                ('ever
+                 (ordlies--make-orl--template
+                  (concat directory "ever.org")
+                  (concat "#+title: ever file\n\n")))))))))
+
+(defun ordlies--create-node (time-period time)
+  (cl-destructuring-bind (directory template)
+      (ordlies--dir-and-template time-period time)
+    (org-roam-datelies-node-constructor :time-period time-period :time time
+                                   :directory directory :template template)))
+    
+;; (ordlies--create-node 'day '(31 10 2024))
+
+
 ;;; capture
 (add-to-list 'org-roam-capture--template-keywords
              :override-default-time)
@@ -423,7 +409,7 @@ MONTH YEAR)."
         (save-buffer)))
     (remove-hook 'org-roam-capture-new-node-hook #'ordlies--capture-cb))
   (add-hook 'org-roam-capture-new-node-hook #'ordlies--capture-cb)
-  (let ((node (org-roam-datelies--create-node time-period time)))
+  (let ((node (ordlies--create-node time-period time)))
     (org-roam-capture- :goto (when goto '(4))
                        :node node
                        :templates (list (org-roam-datelies-node-template node))
@@ -636,7 +622,6 @@ from 9:00 until 16:36."
               (buffer-file-name)))))
     target-file))
 
-
 (defun ordlies--make-subtree-and-get-refile-pos (target-file heading-path-list)
   "Checks target-file to see if HEADING-PATH-LIST exists, creating subtrees as nescessary,
   and returns the point in the buffer right after the end of
@@ -679,13 +664,12 @@ argument, then copy the entry to location."
     (if copy-p (setq org-refile-keep t))
     (org-refile nil nil `(nil ,target-file nil ,refile-pos))))
 
+;;; doing things with (all) ordlies buffers
 (defun ordlies--buffer-p (buffer)
   (and (bufferp buffer)
        (buffer-file-name buffer)
        (f-descendant-of-p (buffer-file-name buffer)
                           (expand-file-name org-roam-datelies-dir org-roam-directory))))
-
-;;; doing things with (all) ordlies buffers
 
 (defun ordlies--get-all-buffers ()
   "Returns a list of all open org-roam-datelies buffers in the current session."
@@ -751,7 +735,6 @@ argument, then copy the entry to location."
 (define-key org-roam-datelies-map (kbd "M-r") #'org-roam-datelies-refile)
 (define-key org-roam-datelies-map (kbd "M-k") #'orl-down-map)
 
-
 (define-key orl-choose-date-map (kbd "d") #'org-roam-datelies-find-date-for-day)
 (define-key orl-choose-date-map (kbd "w") #'org-roam-datelies-find-date-for-week)
 (define-key orl-choose-date-map (kbd "m") #'org-roam-datelies-find-date-for-month)
@@ -760,7 +743,6 @@ argument, then copy the entry to location."
 
 (define-key orl-down-map (kbd "j") #'org-roam-datelies-find-down-first)
 (define-key orl-down-map (kbd "l") #'org-roam-datelies-find-down-last)
-
 
 (dolist (command '(org-roam-datelies-today
                    org-roam-datelies-this-week
