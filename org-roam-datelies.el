@@ -142,12 +142,26 @@ occurs in is Week 1."
 is \='day, then time-data is a list of the form (DAY MONTH YEAR)."
   (apply (intern (concat "ordlies--" (symbol-name time-period) "-start-and-end-times"))
          time-data))
-  
+
 ;; (ordlies--time-period-start-and-end-times 'month '(10 2022))
 ;; ((25399 47936) (25440 39300))
 
 ;; (ordlies--time-period-start-and-end-times 'day '(31 10 2022))
 ;; ((25439 18497) (25439 61695))
+
+(defun ordlies--time-and-period-to-time-data (time-period time)
+  (cl-destructuring-bind (day month quarter year)
+      (ordlies--time-to-day-month-quarter-year time)
+    (pcase time-period
+      ('day `(,day ,month ,year))
+      ('week (ordlies--time-to-week-number-and-year time))
+      ('month `(,month ,year))
+      ('quarter `(,quarter ,year))
+      ('year `(,year)))))
+
+;; (ordlies--time-and-period-to-time-data 'day (current-time))
+;; (ordlies--time-and-period-to-time-data 'week (current-time))
+;; (ordlies--time-and-period-to-time-data 'month (current-time))
 
 (defun ordlies--time-in-time-period-p (time-to-check time-period time-data)
   (cl-destructuring-bind (start-time end-time)
@@ -157,14 +171,12 @@ is \='day, then time-data is a list of the form (DAY MONTH YEAR)."
          (or (time-equal-p time-to-check end-time)
              (time-less-p time-to-check end-time)))))
 
-(defun ordlies--time-period-under-time-period-p (time-period time-data
-                                                             time-period-tc
-                                                             time-data-tc)
-  "Checks whether the time span determined by time-period and
-time-data contains the time span determined by time-period-tc (to
-check) and time-data-tc. Time-data is a list that depends on
-time-period, e.g., if time-period is \='day, then time-data is a
-list of the form (DAY MONTH YEAR)."
+(defun ordlies--time-period-under-time-period-p (time-period time-data time-period-tc time-data-tc)
+  "Checks whether the time span determined by time-period and time-data
+contains the time span determined by time-period-tc (to check)
+and time-data-tc. Time-data is a list that depends on time-period, e.g.,
+if time-period is \='day, then time-data is a list of the form (DAY
+MONTH YEAR)."
   (unless (eq time-period-tc 'ever)
     (cl-destructuring-bind (start end) (ordlies--time-period-start-and-end-times
                                         time-period-tc time-data-tc)
