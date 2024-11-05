@@ -330,63 +330,43 @@ MONTH YEAR)."
 ;;; org-roam-datelies-node definition
 
 (cl-defstruct (org-roam-datelies-node (:include org-roam-node) (:constructor org-roam-datelies-node-constructor))
-  time-period time directory template)
+  time template)
 
-(defun ordlies--make-orl--template (file-str head-str)
-  `("d" "default" entry
-    "* %?"
-    :if-new (file+head ,(expand-file-name file-str org-roam-directory) ,head-str)))
-
-(defun ordlies--dir-and-template (time-period time)
-  (cl-destructuring-bind (_ month quarter year)
-      (ordlies--time-to-day-month-quarter-year time)
-    (cl-destructuring-bind (start-time end-time)
-        (ordlies--time-period-start-and-end-times time-period (ordlies--time-and-period-to-time-data
-                                                               time-period time))
-      (let ((directory (expand-file-name
-                        (concat org-roam-datelies-dir (symbol-name time-period)  "/")
-                        org-roam-directory)))
+(defun ordlies--dir-file-head (time-period time)
+  "Given time-period and time, returns a list of the form (dir (file-str head-str))."
+  (let ((directory (expand-file-name
+                    (concat org-roam-datelies-dir (symbol-name time-period)  "/")
+                    org-roam-directory)))
+    (if (eq time-period 'ever)
+        `(,directory (,(concat directory "ever.org")
+                      ,(concat "#+title: ever file\n\n")))
+      (cl-destructuring-bind (start-time end-time)
+          (ordlies--time-period-start-and-end-times time-period (ordlies--time-and-period-to-time-data
+                                                                 time-period time))    
         (list directory
               (pcase time-period
                 ('day
-                 (ordlies--make-orl--template
-                  (concat directory "%<%Y-%m-%d>.org")
-                  (concat "#+title:%<%Y-%m-%d>" "\n\n" (format-time-string "%A, %F" time) "\n\n")))
+                 `(,(concat directory "%<%Y-%m-%d>.org")
+                   ,(concat "#+title:%<%Y-%m-%d>" "\n\n" (format-time-string "%A, %F" time) "\n\n")))
                 ('week
                  (cl-destructuring-bind (week week-year)
                      (ordlies--time-to-week-number-and-year time)
-                   (ordlies--make-orl--template
-                    (concat directory (concat (number-to-string week-year) "-W" (format "%02d" week) ".org"))
-                    (concat "#+title: " (number-to-string week-year) " week " (format "%02d" week) "\n\n"
-                            (format-time-string "%A, %F"
-                                                start-time)
-                            " -- "(format-time-string "%A, %F" end-time) "\n\n"))))
+                   `(,(concat directory (concat (number-to-string week-year) "-W" (format "%02d" week) ".org"))
+                     ,(concat "#+title: " (number-to-string week-year) " week " (format "%02d" week) "\n\n"
+                              (format-time-string "%A, %F"
+                                                  start-time)
+                              " -- "(format-time-string "%A, %F" end-time) "\n\n"))))
                 ('month
-                 (ordlies--make-orl--template
-                  (concat directory "%<%Y-%m>.org")
-                  (concat "#+title: %<%Y %B>\n\n" (format-time-string "%A, %F" start-time)
-                          " -- " (format-time-string "%A, %F" end-time) "\n\n")))
+                 `(,(concat directory "%<%Y-%m>.org")
+                   ,(concat "#+title: %<%Y %B>\n\n" (format-time-string "%A, %F" start-time)
+                            " -- " (format-time-string "%A, %F" end-time) "\n\n")))
                 ('quarter
-                 (ordlies--make-orl--template
-                  (concat directory "%<%Y-%q>.org")
-                  (concat "#+title: %<%Y quarter %q>\n\n" (format-time-string "%A, %F" start-time)
-                          " -- " (format-time-string "%A, %F" end-time) "\n\n")))
+                 `(,(concat directory "%<%Y-%q>.org")
+                   ,(concat "#+title: %<%Y quarter %q>\n\n" (format-time-string "%A, %F" start-time)
+                            " -- " (format-time-string "%A, %F" end-time) "\n\n")))
                 ('year
-                 (ordlies--make-orl--template
-                  (concat directory "%<%Y>.org")
-                  (concat "#+title: %<%Y>\n\n" (format-time-string "%A, %F" start-time) " -- " (format-time-string "%A, %F" end-time) "\n\n")))
-                ('ever
-                 (ordlies--make-orl--template
-                  (concat directory "ever.org")
-                  (concat "#+title: ever file\n\n")))))))))
-
-(defun ordlies--create-node (time-period time)
-  (cl-destructuring-bind (directory template)
-      (ordlies--dir-and-template time-period time)
-    (org-roam-datelies-node-constructor :time-period time-period :time time
-                                        :directory directory :template template)))
-
-;; (ordlies--create-node 'day '(31 10 2024))
+                 `(,(concat directory "%<%Y>.org")
+                   ,(concat "#+title: %<%Y>\n\n" (format-time-string "%A, %F" start-time) " -- " (format-time-string "%A, %F" end-time) "\n\n")))))))))
 
 
 ;;; capture
@@ -405,11 +385,17 @@ MONTH YEAR)."
         (save-buffer)))
     (remove-hook 'org-roam-capture-new-node-hook #'ordlies--capture-cb))
   (add-hook 'org-roam-capture-new-node-hook #'ordlies--capture-cb)
-  (let ((node (ordlies--create-node time-period time)))
-    (org-roam-capture- :goto (when goto '(4))
-                       :node node
-                       :templates (list (org-roam-datelies-node-template node))
-                       :props (list :override-default-time time))))
+  (cl-destructuring-bind (directory (file-str head-str))
+      (ordlies--dir-and-template time-period time)
+    (let* ((template `("d" "default" entry
+                       "* %?"
+                       :if-new (file+head ,file-str ,head-str)))
+           (node (org-roam-datelies-node-constructor  :time time
+                                                      :template template)))
+      (org-roam-capture- :goto (when goto '(4))
+                         :node node
+                         :templates (list template)
+                         :props (list :override-default-time time)))))
 
 (add-hook 'org-roam-capture-preface-hook
           #'org-roam-datelies--override-capture-time-h)
