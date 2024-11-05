@@ -402,32 +402,26 @@ MONTH YEAR)."
 
 ;;; find functions
 (defun org-roam-datelies-today ()
-  "Find the daily-note for today, creating it if necessary."
   (interactive)
   (org-roam-datelies--capture (current-time) 'day t))
 
 (defun org-roam-datelies-this-week ()
-  "Find the weekly-note for this week, creating it if necessary."
   (interactive)
   (org-roam-datelies--capture (current-time) 'week t))
 
 (defun org-roam-datelies-this-month ()
-  "Find the monthly-note for this month, creating it if necessary."
   (interactive)
   (org-roam-datelies--capture (current-time) 'month t))
 
 (defun org-roam-datelies-this-quarter ()
-  "Find the quarterly-note for this quarter, creating it if necessary."
   (interactive)
   (org-roam-datelies--capture (current-time) 'quarter t))
 
 (defun org-roam-datelies-this-year ()
-  "Find the yearly-note for this year, creating it if necessary."
   (interactive)
   (org-roam-datelies--capture (current-time) 'year t))
 
 (defun org-roam-datelies-ever ()
-  "Find the everly-note, creating it if necessary."
   (interactive)
   (org-roam-datelies--capture (current-time) 'ever t))
 
@@ -474,9 +468,8 @@ monthly or quarterly file."
     (org-roam-datelies--capture time new-time-period t)))
 
 (defun org-roam-datelies-find-down-first ()
-  "If in weekly file, goes to the daily file for the first day of
-   the week; if in monthly file, go to first week of the month,
-   etc."
+  "If in weekly file, goes to the daily file for the first day of the week;
+if in monthly file, go to first week of the month, etc."
   (interactive)
   (let ((time-period (ordlies--node-time-period))
         (start-time (car (ordlies--node-start-and-end-times)))
@@ -489,9 +482,8 @@ monthly or quarterly file."
     (org-roam-datelies--capture start-time new-time-period t)))
 
 (defun org-roam-datelies-find-down-last ()
-  "If in weekly file, goes to the daily file for the last day of
-   the week; if in monthly file, go to last week of the month,
-   etc."
+  "If in weekly file, goes to the daily file for the last day of the week;
+if in monthly file, go to last week of the month, etc."
   (interactive)
   (let ((time-period (ordlies--node-time-period))
         (end-time (cadr (ordlies--node-start-and-end-times)))
@@ -506,10 +498,9 @@ monthly or quarterly file."
 ;;; agenda and related functions
 
 (defun org-roam-datelies-agenda ()
-  "Shows agenda for all of the files under the current
-  org-roam-datelies file (e.g., if in a monthly file, this will call
-  org-agenda will all of the weekly and daily files belonging to
-  that month"
+  "Shows agenda for all of the files under the current org-roam-datelies
+file (e.g., if in a monthly file, this will call org-agenda will all of
+the weekly and daily files belonging to that month"
   (interactive)
   (let (org-agenda-files)
     (setq org-agenda-files (ordlies--files-under))
@@ -656,10 +647,6 @@ argument, then copy the entry to location."
 (define-key org-roam-datelies-map (kbd "q") #'org-roam-datelies-this-quarter)
 (define-key org-roam-datelies-map (kbd "y") #'org-roam-datelies-this-year)
 (define-key org-roam-datelies-map (kbd "e") #'org-roam-datelies-ever)
-(define-key org-roam-datelies-map (kbd "u") (lambda () (interactive)
-                                              (jb/up-heading)
-                                              (forward-char)
-                                              (backward-char)))
 (define-key org-roam-datelies-map (kbd "c") #'org-roam-datelies-choose-by-date)
 (define-key org-roam-datelies-map (kbd "r") #'org-roam-datelies-refile)
 (define-key org-roam-datelies-map (kbd "k") #'orl-down-map)
@@ -674,10 +661,6 @@ argument, then copy the entry to location."
 (define-key org-roam-datelies-map (kbd "M-q") #'org-roam-datelies-this-quarter)
 (define-key org-roam-datelies-map (kbd "M-y") #'org-roam-datelies-this-year)
 (define-key org-roam-datelies-map (kbd "M-e") #'org-roam-datelies-ever)
-(define-key org-roam-datelies-map (kbd "M-u") (lambda () (interactive)
-                                                (jb/up-heading)
-                                                (forward-char)
-                                                (backward-char)))
 (define-key org-roam-datelies-map (kbd "M-c") #'org-roam-datelies-choose-by-date)
 (define-key org-roam-datelies-map (kbd "M-r") #'org-roam-datelies-refile)
 (define-key org-roam-datelies-map (kbd "M-k") #'orl-down-map)
