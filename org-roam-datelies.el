@@ -71,14 +71,13 @@
 ;; This needs more care because week numbers can be a bit tricky.
 (defun ordlies--time-to-week-number-and-year (time)
   "Returns week number and year of the week containing TIME. The
-first week of a year is the week that contains Jan 1. E.g., Jan.
-1, 2024 is on a Monday, so this is W01-2024. And thus, this
-function returns (1 2024) when passed a time in the day Dec 31,
-2023. This function works by finding the day of the week,
-0(Sunday) - 6(Saturday), of time. Uses this to find the Saturday of the
-week containing time. Subtracting a given time on this Saturday
-from the Saturday of week 1, can calculate how many weeks the
-difference is."
+first week of a year is the week that contains Jan 1. E.g., Jan. 1, 2024
+is on a Monday, so this is W01-2024. And thus, this function returns (1
+2024) when passed a time in the day Dec 31, 2023. This function works by
+finding the day of the week, 0(Sunday) - 6(Saturday), of time. Uses this
+to find the Saturday of the week containing time. Subtracting a given
+time on this Saturday from the Saturday of week 1, can calculate how
+many weeks the difference is."
   (let* ((time-day-of-week (string-to-number (format-time-string "%w" time)))
          (time-on-week-end-day
           (ordlies--time-plus time 'day (- 7 (1+ time-day-of-week))))
@@ -388,8 +387,8 @@ MONTH YEAR)."
   (cl-destructuring-bind (directory template)
       (ordlies--dir-and-template time-period time)
     (org-roam-datelies-node-constructor :time-period time-period :time time
-                                   :directory directory :template template)))
-    
+                                        :directory directory :template template)))
+
 ;; (ordlies--create-node 'day '(31 10 2024))
 
 
@@ -459,7 +458,7 @@ MONTH YEAR)."
 (defun org-roam-datelies-choose-by-date (time-period time)
   (interactive
    (list (intern (completing-read "Time period: "
-                                   '("day" "week" "month" "quarter" "year" "ever")))
+                                  '("day" "week" "month" "quarter" "year" "ever")))
          (let ((org-read-date-prefer-future t))
            (org-read-date t t nil "Find entry on: "))))
   (org-roam-datelies--capture time time-period t))
