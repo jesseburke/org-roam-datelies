@@ -456,41 +456,13 @@ MONTH YEAR)."
   (org-roam-datelies--capture (current-time) 'ever t))
 
 ;;; find by date
-
-(defun org-roam-datelies-find-date-for-day (&optional prefer-future)
-  "Find the daily-note for a date using the calendar."
-  (interactive "P")
-  (let ((time (let ((org-read-date-prefer-future prefer-future))
-                (org-read-date t t nil "Find daily-note: "))))
-    (org-roam-datelies--capture time 'day t)))
-
-(defun org-roam-datelies-find-date-for-week (&optional prefer-future)
-  "Find the weekly-note for a date using the calendar."
-  (interactive "P")
-  (let ((time (let ((org-read-date-prefer-future prefer-future))
-                (org-read-date t t nil "Find weekly-note: "))))
-    (org-roam-datelies--capture time 'week t)))
-
-(defun org-roam-datelies-find-date-for-month (&optional prefer-future)
-  "Find the monthly-note for a date using the calendar."
-  (interactive "P")
-  (let ((time (let ((org-read-date-prefer-future prefer-future))
-                (org-read-date t t nil "Find monthly-note: "))))
-    (org-roam-datelies--capture time 'month t)))
-
-(defun org-roam-datelies-find-date-for-quarter (&optional prefer-future)
-  "Find the quarterly-note for a date using the calendar."
-  (interactive "P")
-  (let ((time (let ((org-read-date-prefer-future prefer-future))
-                (org-read-date t t nil "Find quarterly-note: "))))
-    (org-roam-datelies--capture time 'quarter t)))
-
-(defun org-roam-datelies-find-date-for-year (&optional prefer-future)
-  "Find the yearly-note for a date using the calendar."
-  (interactive "P")
-  (let ((time (let ((org-read-date-prefer-future prefer-future))
-                (org-read-date t t nil "Find yearly-note: "))))
-    (org-roam-datelies--capture time 'year t)))
+(defun org-roam-datelies-choose-by-date (time-period time)
+  (interactive
+   (list (intern (completing-read "Time period: "
+                                   '("day" "week" "month" "quarter" "year" "ever")))
+         (let ((org-read-date-prefer-future t))
+           (org-read-date t t nil "Find entry on: "))))
+  (org-roam-datelies--capture time time-period t))
 
 ;;; find relative
 
@@ -697,7 +669,6 @@ argument, then copy the entry to location."
 
 ;;; org-roam-datelies-map (keymap)
 (define-prefix-command 'org-roam-datelies-map)
-(define-prefix-command 'orl-choose-date-map)
 (define-prefix-command 'orl-down-map)
 
 (define-key org-roam-datelies-map (kbd "j") #'org-roam-datelies-find-previous)
@@ -713,7 +684,7 @@ argument, then copy the entry to location."
                                               (jb/up-heading)
                                               (forward-char)
                                               (backward-char)))
-(define-key org-roam-datelies-map (kbd "c") #'orl-choose-date-map)
+(define-key org-roam-datelies-map (kbd "c") #'org-roam-datelies-choose-by-date)
 (define-key org-roam-datelies-map (kbd "r") #'org-roam-datelies-refile)
 (define-key org-roam-datelies-map (kbd "k") #'orl-down-map)
 (keymap-set org-roam-datelies-map (kbd "t") 'org-roam-datelies-time-worked)
@@ -731,15 +702,9 @@ argument, then copy the entry to location."
                                                 (jb/up-heading)
                                                 (forward-char)
                                                 (backward-char)))
-(define-key org-roam-datelies-map (kbd "M-c") #'orl-choose-date-map)
+(define-key org-roam-datelies-map (kbd "M-c") #'org-roam-datelies-choose-by-date)
 (define-key org-roam-datelies-map (kbd "M-r") #'org-roam-datelies-refile)
 (define-key org-roam-datelies-map (kbd "M-k") #'orl-down-map)
-
-(define-key orl-choose-date-map (kbd "d") #'org-roam-datelies-find-date-for-day)
-(define-key orl-choose-date-map (kbd "w") #'org-roam-datelies-find-date-for-week)
-(define-key orl-choose-date-map (kbd "m") #'org-roam-datelies-find-date-for-month)
-(define-key orl-choose-date-map (kbd "q") #'org-roam-datelies-find-date-for-quarter)
-(define-key orl-choose-date-map (kbd "y") #'org-roam-datelies-find-date-for-year)
 
 (define-key orl-down-map (kbd "j") #'org-roam-datelies-find-down-first)
 (define-key orl-down-map (kbd "l") #'org-roam-datelies-find-down-last)
