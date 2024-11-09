@@ -329,20 +329,19 @@ MONTH YEAR)."
 
 ;;; capture and related
 
-
-(defun ordlies--dir-file-head (time-period time)
-  "Given time-period and time, returns a list of the form (dir (file-str head-str))."
+(defun ordlies--file-head (time-period time)
+  "Given time-period and time, returns a list of the form (file-str head-str), to be used
+in capture template."
   (let ((directory (expand-file-name
                     (concat org-roam-datelies-dir (symbol-name time-period)  "/")
                     org-roam-directory)))
     (if (eq time-period 'ever)
-        `(,directory (,(concat directory "ever.org")
-                      ,(concat "#+title: ever file\n\n")))
+        `(,(concat directory "ever.org")
+          ,(concat "#+title: ever file\n\n"))
       (cl-destructuring-bind (start-time end-time)
           (ordlies--time-period-start-and-end-times time-period (ordlies--time-and-period-to-time-data
                                                                  time-period time))
-        (list directory
-              (pcase time-period
+        (pcase time-period
                 ('day
                  `(,(concat directory "%<%Y-%m-%d>.org")
                    ,(concat "#+title:%<%Y-%m-%d>" "\n\n" (format-time-string "%A, %F" time) "\n\n")))
@@ -364,7 +363,10 @@ MONTH YEAR)."
                             " -- " (format-time-string "%A, %F" end-time) "\n\n")))
                 ('year
                  `(,(concat directory "%<%Y>.org")
-                   ,(concat "#+title: %<%Y>\n\n" (format-time-string "%A, %F" start-time) " -- " (format-time-string "%A, %F" end-time) "\n\n")))))))))
+                   ,(concat "#+title: %<%Y>\n\n" (format-time-string "%A, %F" start-time)
+                            " -- " (format-time-string "%A, %F" end-time) "\n\n"))))))))
+
+;; (ordlies--file-head 'week (current-time))
 
 (add-to-list 'org-roam-capture--template-keywords
              :override-default-time)
@@ -381,8 +383,8 @@ MONTH YEAR)."
         (save-buffer)))
     (remove-hook 'org-roam-capture-new-node-hook #'ordlies--capture-cb))
   (add-hook 'org-roam-capture-new-node-hook #'ordlies--capture-cb)
-  (cl-destructuring-bind (directory (file-str head-str))
-      (ordlies--dir-and-template time-period time)
+  (cl-destructuring-bind (file-str head-str)
+      (ordlies--file-head time-period time)
     (let ((template `("d" "default" entry
                       "* %?"
                       :if-new (file+head ,file-str ,head-str))))
