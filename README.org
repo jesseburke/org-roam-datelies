@@ -1,0 +1,47 @@
+#+TITLE: org-roam-datelies
+#+AUTHOR: Jesse Burke
+
+Generalization of [[https://github.com/org-roam/org-roam/][org-roam]] dailies feature to org-roam
+weeklies, monthlies, quarterlies, yearlies, and ever notes.
+
+The idea is that everything should go somewhere, e.g., if you have something you didn't
+finish this week, you can move it to next week, or move it up to the monthly note, etc.
+
+* What is it?
+
+Package that allows you to easily create org-roam notes for every: day, week, month,
+quarter, year (and one ever file). Also allows you to easily navigate and refile between
+time-periods (e.g., go up to the monthly containing the weekly you are visiting).
+
+* Other features
+
+** org-roam-datelies agenda
+
+When called in an org-roam-lies file, calls =org-agenda=, with =org-agenda-files= set to
+the list of all files that are under the current org-roam-lies file (e.g., if in monthly
+file, then org-agenda-files is set to that monthly file, plus all of the weeklys that
+overlap that month, and all of the dailies in the month).
+
+** org-roam-datelies refiling
+
+* How does it work?
+
+big part of it is overriding the time setting in org-roam-capture-hook, so that the
+capture thinks it's whatever time the orl-buffer lives in.
+
+* Other things
+
+** week numbers
+are a bit tricky
+
+also, weeks start on Sunday. maybe change that to Monday?
+
+when in a week, up goes to the month of the first day of the week.
+
+** quarters
+quarters are full months:
+
+quarter 1: jan 1 - march 31
+quarter 2: apr 1 - june 30
+quarter 3: july 1 - sep 30
+quarter 4: oct 1 - dec 31
