@@ -4,7 +4,7 @@
 ;;
 ;; URL: https://github.com/jesseburke/org-roam-datelies
 ;; Keywords: org-mode, roam
-;; Version: 0.0.1
+;; Version: 0.0.2
 ;; Package-Requires: ((emacs "27.1") (org-roam "2.2.2"))
 
 ;; This file is NOT part of GNU Emacs.
@@ -45,7 +45,7 @@
   :link '(url-link :tag "Github" "https://github.com/jesseburke/org-roam-datelies"))
 
 (defcustom org-roam-datelies-dir "datelies/"
-  "Path to directory for datelie notes (relative to `org-roam-directory')."
+  "Path to directory for datelies notes (relative to `org-roam-directory')."
   :group 'org-roam-datelies
   :type 'string)
 
@@ -185,15 +185,33 @@ MONTH YEAR)."
 ;;; prop-related (to distinguish ordlies nodes)
 
 (defvar ordlies--prop-and-valuefn-list
-  '((day "ord-day" (lambda (time) (format-time-string "%Y-%m-%d" time)))
-    (week "ord-week" (lambda (time)
-                       (cl-destructuring-bind (week week-year)
-                           (ordlies--time-to-week-number-and-year time)
-                         (concat (number-to-string week-year) "-" (format "%02d" week)))))
-    (month "ord-month" (lambda (time) (format-time-string "%Y-%m" time)))
-    (quarter "ord-quarter" (lambda (time) (format-time-string "%Y-%q" time)))
-    (year "ord-year" (lambda (time) (format-time-string "%Y" time)))
-    (ever "ord-ever" (lambda (_time) "t"))))
+  '((day "ord-day"
+         (lambda (time) (format-time-string "%Y-%m-%d" time))
+         (lambda (time-string) `(,(string-to-number (substring time-string 8 10)) ;; day
+                                 ,(string-to-number (substring time-string 5 7)) ;; month
+                                 ,(string-to-number (substring time-string 0 4))))) ;; year
+    (week "ord-week"
+          (lambda (time)
+            (cl-destructuring-bind (week week-year)
+                (ordlies--time-to-week-number-and-year time)
+              (concat (number-to-string week-year) "-" (format "%02d" week))))
+          (lambda (time-string) `(,(string-to-number (substring time-string 5 7))
+                                  ,(string-to-number (substring time-string 0 4)))))
+    (month "ord-month"
+           (lambda (time) (format-time-string "%Y-%m" time))
+           (lambda (time-string) `(,(string-to-number (substring time-string 5 7))
+                                   ,(string-to-number (substring time-string 0 4)))))
+    (quarter "ord-quarter"
+             (lambda (time) (format-time-string "%Y-%q" time))
+             (lambda (time-string) `(,(string-to-number (substring time-string 5 6))
+                                     ,(string-to-number (substring time-string 0 4)))))
+    (year "ord-year"
+          (lambda (time) (format-time-string "%Y" time))
+          (lambda (time-string) `(,(string-to-number (substring time-string 0 4)))))
+    (ever "ord-ever" (lambda (_time) "t")))
+  "This is an alist, whose keys are the time-periods, and values should be (in order):
+  string to give property name, function to compute property value, function to turn
+  property value string to time data.")
 
 ;; (cadr (assoc 'week ordlies--prop-and-valuefn-list))
 ;; (funcall (caddr (assoc 'week ordlies--prop-and-valuefn-list)) (current-time))
@@ -252,32 +270,15 @@ MONTH YEAR)."
 
 (defun ordlies--node-time-data (&optional node-props)
   (unless node-props (setq node-props (org-roam-node-properties (org-roam-node-at-point))))
-  (let* ((time-period (ordlies--node-time-period node-props))
-         (time-data-string (ordlies--node-time-data-string node-props))
-         (year (string-to-number (substring time-data-string 0 4))))
-    (pcase time-period
-      ('day
-       (let ((month (string-to-number (substring time-data-string 5 7)))
-             (day (string-to-number (substring time-data-string 8 10))))
-         (list day month year)))
-      ('week
-       (let ((week-no (string-to-number (substring time-data-string 5 7))))
-         (list week-no year)))
-      ('month
-       (let ((month (string-to-number (substring time-data-string 5 7))))
-         (list month year)))
-      ('quarter
-       (let ((quarter (string-to-number (substring time-data-string 5 6))))
-         (list quarter year)))
-      ('year
-       (list year)))))
-
+  (let ((time-period (ordlies--node-time-period node-props))
+        (time-data-string (ordlies--node-time-data-string node-props)))
+    (funcall (nth 3 (assoc time-period ordlies--prop-and-valuefn-list)) time-data-string)))
+    
 ;; (ordlies--node-time-data (org-roam-node-properties test-node))
 
 (defun ordlies--node-start-and-end-times (&optional node-props)
   "Returns a list of the form (start-time end-time)."
-  (unless node-props (setq node-props (org-roam-node-properties
-                                       (org-roam-node-at-point))))
+  (unless node-props (setq node-props (org-roam-node-properties (org-roam-node-at-point))))
   (let ((timeperiod (ordlies--node-time-period node-props))
         (timedata (ordlies--node-time-data node-props)))
     (ordlies--time-period-start-and-end-times timeperiod timedata)))
@@ -286,8 +287,7 @@ MONTH YEAR)."
 
 (defun ordlies--time-in-node-time-period (&optional node-props)
   "returns a single time in the time period of the current file"
-  (unless node-props (setq node-props (org-roam-node-properties
-                                       (org-roam-node-at-point))))
+  (unless node-props (setq node-props (org-roam-node-properties (org-roam-node-at-point))))
   (car (ordlies--node-start-and-end-times node-props)))
 
 ;; (ordlies--time-in-node-time-period (org-roam-node-properties test-node))
