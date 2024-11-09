@@ -83,9 +83,9 @@ many weeks the difference is."
           (ordlies--time-plus time 'day (- 7 (1+ time-day-of-week))))
          (year (string-to-number (format-time-string "%Y" time-on-week-end-day)))
          (week1-end-time (cadr (ordlies--week1-start-and-end-times year)))
-         (time-difference-in-secs (floor (float-time (time-subtract time-on-week-end-day week1-end-time ))))
+         (time-difference-in-secs (float-time (time-subtract time-on-week-end-day week1-end-time)))
          (secs-in-a-week (* 7 (* 24 (* 60 60)))))
-    (list (1+ (/ time-difference-in-secs secs-in-a-week)) year)))
+    (list (1+ (round (/ time-difference-in-secs secs-in-a-week))) year)))
 
 (defun ordlies--time-to-day-month-quarter-year (time)
   (let* ((str (format-time-string "%Y%q%m%d" time))
